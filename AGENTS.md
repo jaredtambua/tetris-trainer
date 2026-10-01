@@ -26,6 +26,11 @@ architecture, restructure the source tree, or introduce placeholder packages.
   `benchmarks/baseline.py` measures complete one-ply decisions and feature cost.
   `benchmarks/performance.py` separates cold/warm enumeration and captures
   comparable profiles and allocation peaks; see `docs/PLACEMENT_PERFORMANCE.md`.
+- `environment.py` owns the framework-free numerical observation, variable
+  placement-action handles, and factual episode transitions. It delegates all
+  mechanics to Game; no reward weights, learned hold actions, or training
+  algorithm live in this boundary. See `docs/RL_ENVIRONMENT.md` for contract v1
+  and `benchmarks/environment.py` for basic reset/step overhead measurements.
 
 ## Non-negotiable principles
 
