@@ -112,6 +112,19 @@ and board and are observations, not test thresholds.
 
 ## Develop
 
+The optional [neural placement foundation](docs/NEURAL_AGENT.md) provides a
+trainable variable-action policy/value model, tensor batching/masks, inference,
+rollout records and local checkpoints. It is **UNTRAINED**, with no learning
+algorithm or reward objective:
+
+```sh
+python -m pip install -e ".[ml]"
+python -m tetris_trainer.neural --seed 42 --placements 20
+python -m benchmarks.neural
+```
+
+Install the ML extra to run neural tests; engine/UI/baseline usage needs no torch.
+
 The [RL-ready environment contract](docs/RL_ENVIRONMENT.md) defines a headless
 212-integer observation, variable legal placement candidates, and factual
 transitions without a reward policy or ML framework:
