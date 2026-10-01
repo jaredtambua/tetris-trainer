@@ -6,6 +6,7 @@ import argparse
 import tkinter as tk
 
 from .board import HEIGHT, WIDTH
+from .baseline import BaselineAgent, Decision
 from .engine import Action, Game
 from .pieces import CELLS, Orientation, Tetromino
 
@@ -49,10 +50,21 @@ class TetrisWindow:
     MARGIN = 18
     SIDE = 150
 
-    def __init__(self, root: tk.Tk, seed: int = 0) -> None:
+    def __init__(self, root: tk.Tk, seed: int = 0, *, ai: bool = False,
+                 ai_interval_ms: int = 750) -> None:
+        if ai_interval_ms <= 0:
+            raise ValueError("AI interval must be positive")
         self.root = root
         self.seed = seed
         self.game = Game(seed)
+        self.ai = ai
+        self.ai_interval_ms = ai_interval_ms
+        self.agent = BaselineAgent() if ai else None
+        self.paused = False
+        self.stopped = False
+        self.closed = False
+        self.decision: Decision | None = None
+        self._timer: str | None = None
         width = self.MARGIN * 3 + self.SIDE * 2 + WIDTH * self.CELL
         height = self.MARGIN * 2 + HEIGHT * self.CELL
         self.canvas = tk.Canvas(root, width=width, height=height, bg="#16161d", highlightthickness=0)
@@ -60,7 +72,38 @@ class TetrisWindow:
         root.title("Tetris Trainer — no gravity")
         root.resizable(False, False)
         root.bind("<KeyPress>", self._key)
+        root.protocol("WM_DELETE_WINDOW", self._close)
         self.draw()
+        self._schedule()
+
+    def _cancel_timer(self) -> None:
+        if self._timer is not None:
+            self.root.after_cancel(self._timer)
+            self._timer = None
+
+    def _schedule(self) -> None:
+        if (self.ai and not self.paused and not self.stopped and not self.closed
+                and not self.game.game_over and self._timer is None):
+            self._timer = self.root.after(self.ai_interval_ms, self._ai_step)
+
+    def _ai_step(self) -> None:
+        self._timer = None
+        if self.closed or self.paused or self.stopped or self.game.game_over:
+            return
+        assert self.agent is not None
+        self.decision = self.agent.decide(self.game)
+        if self.decision is None:
+            self.stopped = True
+        else:
+            transition = self.game.apply_placement(self.decision.placement)
+            self.stopped = not transition.accepted
+        self.draw()
+        self._schedule()
+
+    def _close(self) -> None:
+        self.closed = True
+        self._cancel_timer()
+        self.root.destroy()
 
     @property
     def board_x(self) -> int:
@@ -69,7 +112,21 @@ class TetrisWindow:
     def _key(self, event: tk.Event) -> str:
         key = event.keysym
         if key == RESTART_KEY:
+            self._cancel_timer()
             self.game = Game(self.seed)
+            self.paused = False
+            self.stopped = False
+            self.decision = None
+            self._schedule()
+        elif self.ai and key.lower() == "p":
+            self.paused = not self.paused
+            self._cancel_timer()
+            self._schedule()
+        elif self.ai and key == "Escape":
+            self._close()
+            return "break"
+        elif self.ai:
+            return "break"
         else:
             action = KEY_BINDINGS.get(key) or KEY_BINDINGS.get(key.lower())
             if action is None:
@@ -123,9 +180,25 @@ class TetrisWindow:
         self._preview(self.game.hold_piece, self.MARGIN, self.MARGIN + 30)
         controls_y = 170
         self.canvas.create_text(
-            self.MARGIN, controls_y, text="CONTROLS\n" + "\n".join(CONTROLS), fill="#d3d3dc",
+            self.MARGIN, controls_y,
+            text="CONTROLS\n" + "\n".join(
+                ("P  Pause / resume", "F5  Restart", "Esc  Close") if self.ai else CONTROLS), fill="#d3d3dc",
             anchor="nw", justify="left", font=("TkDefaultFont", 9), width=self.SIDE,
         )
+        if self.ai:
+            state = ("Game over" if self.game.game_over else "Stopped" if self.stopped
+                     else "Paused" if self.paused else "Playing")
+            details = f"BASELINE AI\n{state}"
+            if self.decision is not None:
+                features = self.decision.features
+                details += (f"\nScore: {self.decision.score:.3f}\nHoles: {features.holes}"
+                            f"\nHeight: {features.aggregate_height}"
+                            f"\nBumpiness: {features.bumpiness}"
+                            f"\nCleared: {features.lines_cleared}"
+                            f"\nCandidates: {self.decision.placements_evaluated}")
+            self.canvas.create_text(
+                self.MARGIN, 310, text=details, fill="#d3d3dc", anchor="nw",
+                justify="left", font=("TkDefaultFont", 9), width=self.SIDE)
 
         right = bx + WIDTH * self.CELL + self.MARGIN
         self.canvas.create_text(right, self.MARGIN, text="NEXT", fill="white", anchor="nw", font=("TkDefaultFont", 12, "bold"))
@@ -144,9 +217,14 @@ class TetrisWindow:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Play no-gravity Tetris Trainer")
     parser.add_argument("--seed", type=int, default=0, help="deterministic seven-bag seed")
+    parser.add_argument("--ai", action="store_true", help="watch the one-ply baseline AI")
+    parser.add_argument("--ai-interval-ms", type=int, default=750,
+                        help="delay between AI placements in milliseconds (positive)")
     args = parser.parse_args()
+    if args.ai_interval_ms <= 0:
+        parser.error("--ai-interval-ms must be positive")
     root = tk.Tk()
-    TetrisWindow(root, args.seed)
+    TetrisWindow(root, args.seed, ai=args.ai, ai_interval_ms=args.ai_interval_ms)
     root.mainloop()
 
 

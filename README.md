@@ -28,6 +28,88 @@ For a repeatable piece sequence, use `python -m tetris_trainer --seed 123`.
 The window shows the 10×20 board, active and ghost pieces, hold, five upcoming
 pieces, cleared-line count, and game-over state.
 
+## Watch the baseline AI
+
+```sh
+python -m tetris_trainer --ai --seed 42
+```
+
+The same headless `BaselineAgent` chooses and applies final placements through
+the existing engine and renderer. The default pause between decisions is 750 ms;
+set `--ai-interval-ms 1200` for a slower pace. **P** pauses/resumes, **F5** restarts
+with the same seed, and **Escape** closes. Movement/hold keys are ignored only
+in AI mode; launching without `--ai` retains the human controls above. There is
+no gravity or path animation. The left panel shows the latest decision's score,
+features, and number of placements evaluated. Decisions run synchronously, so
+Tk waits while a complete decision is computed; the interval is additional to
+that computation time.
+
+## Interpretable one-ply baseline
+
+`tetris_trainer/baseline.py` owns feature extraction and decision logic. Neither
+`Game` nor `Board` contains AI scores. For every legal placement the agent uses
+`Game.simulate_placement()`, measures the resulting **post-clear** board, and
+maximizes this deliberately simple, untuned integer formula:
+
+```text
+score = -5 * holes - aggregate_height - bumpiness + 10 * lines_cleared
+```
+
+- A hole is an empty visible cell below at least one occupied cell in its column.
+  Every such cell counts, even if lateral access is possible.
+- Column height is the distance from its highest occupied cell to the floor;
+  an empty column has height zero. Aggregate height sums these heights.
+- Bumpiness is the sum of absolute height differences between adjacent columns,
+  without adding imaginary boundary columns.
+- Lines cleared is the candidate's simulated total-line-count delta, provided by
+  authoritative execution. Feature extraction does not implement line clearing.
+
+Named constants define the four weights. Equal scores keep the first placement
+in the engine's deterministic enumeration order. A frozen `Decision` exposes
+`placement`, `score`, `features`, and `placements_evaluated`; no legal placements
+returns `None`. Decisions do not mutate the supplied game or use keyboard inputs.
+
+Run and inspect the same agent without importing Tk:
+
+```python
+from tetris_trainer import Game
+from tetris_trainer.baseline import BaselineAgent, run_headless
+
+game = Game(seed=42)
+decision = BaselineAgent().decide(game)
+if decision is not None:
+    print(decision.score, decision.features)
+    game.apply_placement(decision.placement)
+
+summary = run_headless(seed=42, placement_limit=100)
+print(summary.placements, summary.lines_cleared, summary.game_over, summary.stop_reason)
+final_game = summary.game
+```
+
+`run_headless()` owns its seeded game and runs until the nonnegative integer
+placement limit, game over, or no visible legal locks. `stop_reason` distinguishes
+`limit`, `game_over`, and `no_legal_placements`; no locks can occur without the
+engine's game-over flag under current top-out semantics. A zero limit returns
+the initial state. The summary includes the independent final game for inspection.
+
+This is a reference/debugging baseline for the AI pipeline, not the final learned
+agent. It has no hold, queue-aware search, or depth beyond one. Terminal results
+receive the same four-feature score, with no extra survival heuristic. Thus it
+can choose a placement whose next spawn ends the game. Untuned weights and local
+features cannot anticipate future traps. Learned policies and faster simulation
+remain separate bounded work.
+
+Benchmark a complete decision with `python -m benchmarks.baseline`. It uses the
+same uneven-column, seed-42 active-T fixture as the simulation benchmark, reports
+placements evaluated, and separately times extraction/scoring. Candidate
+simulation revalidates reachability for every placement; repeated BFS,
+collision checks, and piece allocations dominate, while feature extraction is
+small. No placement/simulation optimization is included in this task.
+On Python 3.13.0 / Windows AMD64, the local median of five complete decisions
+was 277.934 ms for 34 candidates; extraction plus scoring averaged 0.007 ms
+per call (median of three 1,000-call batches). Timings depend on the machine
+and board and are observations, not test thresholds.
+
 ## Develop
 
 ```sh
