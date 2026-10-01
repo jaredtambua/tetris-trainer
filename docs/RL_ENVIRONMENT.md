@@ -147,13 +147,17 @@ initial environment preparation is outside the timed region. Each operation
 uses a median of three batches (20 resets/steps or 1,000 observations). This is
 an overhead check, not a performance target or justification for optimization.
 
-Local Python 3.13.0 / Windows AMD64 measurements with 34 initial candidates:
+Historical pre-rebase measurements, before performance integration, on Python
+3.13.0 / Windows AMD64 with 34 initial candidates:
 reset 8.544 ms (117.0/s), step 14.250 ms (70.2/s), and observe 0.016 ms
 (approximately 64,405/s). Throughput ratios use unrounded timings. Enumeration
 and authoritative reachability validation dominate; the numerical encoding adds
 little overhead. Results are machine/state-dependent and are not test thresholds.
 
-This branch was created from fetched `origin/main` at `c185dd7`; the separate
-performance commit `debbdb6` was not on origin/main and is not imported here.
-The current engine therefore re-enumerates during placement validation. Future
-integration of engine optimizations needs no environment contract redesign.
+The rebased branch now includes the placement/simulation performance optimization
+(`debbdb6`) through updated main. Environment stepping benefits from the engine's
+legal-placement catalog: validation reuses the catalog when the full gameplay
+snapshot matches, while the next state's candidates require fresh enumeration.
+Source-state and reachable-membership checks remain intact. This integration
+does not change the environment contract. See [PLACEMENT_PERFORMANCE.md](PLACEMENT_PERFORMANCE.md)
+for the optimization's profiling evidence and before/after measurements.
