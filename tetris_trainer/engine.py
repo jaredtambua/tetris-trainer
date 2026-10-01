@@ -8,7 +8,7 @@ no gameplay rules.
 from __future__ import annotations
 
 from collections import deque
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum, auto
 import json
 from importlib.resources import files
@@ -56,6 +56,29 @@ class Transition:
     game_over: bool = False
 
 
+@dataclass(frozen=True, slots=True)
+class Placement:
+    """A reachable visible lock position, bound to its originating game state."""
+
+    kind: Tetromino
+    orientation: Orientation
+    x: int
+    y: int
+    _source: tuple[object, ...] = field(default=(), repr=False, compare=False)
+
+    @property
+    def cells(self) -> tuple[tuple[int, int], ...]:
+        return ActivePiece(self.kind, self.orientation, self.x, self.y).cells
+
+
+@dataclass(frozen=True, slots=True)
+class SimulationResult:
+    """Independent mutable game branch and immutable execution metadata."""
+
+    game: Game
+    transition: Transition
+
+
 class BagRandomizer:
     """Owned seedable RNG and its deterministic stream of complete seven-bags."""
 
@@ -82,6 +105,13 @@ class BagRandomizer:
 
     def snapshot(self) -> tuple[object, tuple[Tetromino, ...]]:
         return self._rng.getstate(), tuple(self._pieces)
+
+    def clone(self) -> BagRandomizer:
+        """Copy queue and RNG without generating or consuming any pieces."""
+        clone = BagRandomizer(0)
+        clone._rng.setstate(self._rng.getstate())
+        clone._pieces = self._pieces.copy()
+        return clone
 
 
 def _load_kicks() -> dict[str, dict[str, tuple[tuple[int, int], ...]]]:
@@ -119,6 +149,33 @@ class Game:
     @property
     def upcoming(self) -> tuple[Tetromino, ...]:
         return self.randomizer.peek(self.PREVIEW_COUNT)
+
+    def clone(self) -> Game:
+        """Fork all simulation state, sharing only immutable board/piece values.
+
+        Bypass initialization so no spawn, queue refill, or random draw occurs.
+        Keep this field list in sync with snapshot when adding engine state.
+        """
+        clone = object.__new__(Game)
+        clone.board = self.board
+        clone.active = self.active
+        clone.randomizer = self.randomizer.clone()
+        clone.hold_piece = self.hold_piece
+        clone.hold_used = self.hold_used
+        clone.game_over = self.game_over
+        clone.total_lines = self.total_lines
+        return clone
+
+    def simulate_placement(self, placement: Placement) -> SimulationResult:
+        """Apply a choice on a fresh branch, leaving this game untouched.
+
+        Invalid/stale choices return an unaccepted transition and an unchanged,
+        independent clone, following apply_placement's rejection convention.
+        The returned game supports further enumeration and simulation.
+        """
+        branch = self.clone()
+        transition = branch.apply_placement(placement)
+        return SimulationResult(branch, transition)
 
     def _spawn(self, kind: Tetromino) -> bool:
         candidate = ActivePiece(kind)
@@ -163,28 +220,85 @@ class Game:
 
     def _try_move(self, dx: int, dy: int) -> bool:
         assert self.active is not None
-        candidate = self.active.moved(dx, dy)
-        if not self._legal(candidate):
+        candidate = self._move_piece(self.active, dx, dy)
+        if candidate is None:
             return False
         self.active = candidate
         return True
 
+    def _move_piece(self, piece: ActivePiece, dx: int, dy: int) -> ActivePiece | None:
+        candidate = piece.moved(dx, dy)
+        return candidate if self._legal(candidate) else None
+
     def _try_rotate(self, amount: int) -> bool:
         assert self.active is not None
-        old = self.active.orientation
+        candidate = self._rotate_piece(self.active, amount)
+        if candidate is None:
+            return False
+        self.active = candidate
+        return True
+
+    def _rotate_piece(self, piece: ActivePiece, amount: int) -> ActivePiece | None:
+        old = piece.orientation
         new = Orientation((old + amount) % 4)
-        if self.active.kind is Tetromino.O:
-            self.active = ActivePiece(self.active.kind, new, self.active.x, self.active.y)
-            return True
-        group = "i" if self.active.kind is Tetromino.I else "jlstz"
+        if piece.kind is Tetromino.O:
+            return ActivePiece(piece.kind, new, piece.x, piece.y)
+        group = "i" if piece.kind is Tetromino.I else "jlstz"
         for kick_x, kick_y_up in _KICKS[group][f"{old.value}>{new.value}"]:
             candidate = ActivePiece(
-                self.active.kind, new, self.active.x + kick_x, self.active.y - kick_y_up
+                piece.kind, new, piece.x + kick_x, piece.y - kick_y_up
             )
             if self._legal(candidate):
-                self.active = candidate
-                return True
-        return False
+                return candidate
+        return None
+
+    def legal_placements(self) -> tuple[Placement, ...]:
+        """Enumerate visible reachable locks without changing simulation state.
+
+        BFS retains orientation even for equal geometry: kick behavior depends on
+        it. Only final locks are deduplicated by occupied cells. With the current
+        SRS+ tables, wall-only rotations above the board use horizontal kicks;
+        upward kicks require nearby board/floor collisions. The graph is finite
+        even though board collision allows cells above row zero. No artificial
+        ceiling or spawn reset is imposed.
+        """
+        if self.game_over or self.active is None or not self._legal(self.active):
+            return ()
+        source = self.snapshot()
+        pending = deque([self.active])
+        visited = {self.active}
+        locks: dict[tuple[tuple[int, int], ...], Placement] = {}
+        while pending:
+            piece = pending.popleft()
+            down = self._move_piece(piece, 0, 1)
+            if down is None and all(y >= 0 for _, y in piece.cells):
+                key = tuple(sorted(piece.cells))
+                locks.setdefault(key, Placement(
+                    piece.kind, piece.orientation, piece.x, piece.y, source
+                ))
+            neighbors = (
+                self._move_piece(piece, -1, 0),
+                self._move_piece(piece, 1, 0), down,
+                self._rotate_piece(piece, 1),
+                self._rotate_piece(piece, -1),
+                self._rotate_piece(piece, 2),
+            )
+            for candidate in neighbors:
+                if candidate is not None and candidate not in visited:
+                    visited.add(candidate)
+                    pending.append(candidate)
+        return tuple(sorted(locks.values(), key=lambda p: (p.orientation, p.x, p.y)))
+
+    def apply_placement(self, placement: Placement) -> Transition:
+        """Reject stale/unreachable choices atomically; use authoritative locking."""
+        if not isinstance(placement, Placement) or placement._source != self.snapshot():
+            return Transition(False, game_over=self.game_over)
+        if placement not in self.legal_placements():
+            return Transition(False, game_over=self.game_over)
+        self.active = ActivePiece(
+            placement.kind, placement.orientation, placement.x, placement.y
+        )
+        return self._lock()
 
     def _hold(self) -> bool:
         assert self.active is not None
