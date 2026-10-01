@@ -15,21 +15,22 @@ KEY_BINDINGS: dict[str, Action] = {
     "Right": Action.MOVE_RIGHT,
     "Down": Action.SOFT_DROP,
     "space": Action.HARD_DROP,
-    "z": Action.ROTATE_CCW,
-    "x": Action.ROTATE_CW,
-    "Up": Action.ROTATE_CW,
-    "a": Action.ROTATE_180,
-    "c": Action.HOLD,
+    "q": Action.ROTATE_180,
+    "w": Action.ROTATE_CCW,
+    "e": Action.ROTATE_CW,
+    "r": Action.HOLD,
 }
+
+RESTART_KEY = "F5"
 
 CONTROLS = (
     "←/→  Move",
     "↓  Soft drop (one row)",
     "Space  Hard drop",
-    "Z / X / ↑  Rotate CCW / CW",
-    "A  Rotate 180°",
-    "C  Hold",
-    "R  Restart",
+    "W / E  Rotate CCW / CW",
+    "Q  Rotate 180°",
+    "R  Hold",
+    f"{RESTART_KEY}  Restart",
 )
 
 COLORS = {
@@ -67,7 +68,7 @@ class TetrisWindow:
 
     def _key(self, event: tk.Event) -> str:
         key = event.keysym
-        if key.lower() == "r":
+        if key == RESTART_KEY:
             self.game = Game(self.seed)
         else:
             action = KEY_BINDINGS.get(key) or KEY_BINDINGS.get(key.lower())
@@ -137,7 +138,7 @@ class TetrisWindow:
             cy = by + HEIGHT * self.CELL / 2
             self.canvas.create_rectangle(cx - 125, cy - 50, cx + 125, cy + 50, fill="#101018", outline="#ef3e3e", width=2)
             self.canvas.create_text(cx, cy - 12, text="GAME OVER", fill="#ef3e3e", font=("TkDefaultFont", 20, "bold"))
-            self.canvas.create_text(cx, cy + 22, text="Press R to restart", fill="white")
+            self.canvas.create_text(cx, cy + 22, text=f"Press {RESTART_KEY} to restart", fill="white")
 
 
 def main() -> None:

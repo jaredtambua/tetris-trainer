@@ -19,11 +19,11 @@ For a repeatable piece sequence, use `python -m tetris_trainer --seed 123`.
 | Left / Right | Move horizontally |
 | Down | Soft drop exactly one row |
 | Space | Hard drop and lock |
-| Z | Rotate counter-clockwise |
-| X or Up | Rotate clockwise |
-| A | Rotate 180 degrees |
-| C | Hold / swap |
-| R | Restart with the same seed |
+| W | Rotate counter-clockwise |
+| E | Rotate clockwise |
+| Q | Rotate 180 degrees |
+| R | Hold / swap |
+| F5 | Restart with the same seed |
 
 The window shows the 10×20 board, active and ghost pieces, hold, five upcoming
 pieces, cleared-line count, and game-over state.
