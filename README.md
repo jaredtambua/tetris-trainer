@@ -98,12 +98,10 @@ optimizations. There is no cache or additional runtime dependency.
 branch = game.clone()
 placements = game.legal_placements()
 if placements:
-    result = game.simulate_placement(placements[0])
-    if result.transition.accepted:
-        child = result.game
-        next_choices = child.legal_placements()
-        if next_choices:
-            grandchild = child.simulate_placement(next_choices[0])
+    child = game.simulate_placement(placements[0])
+    next_choices = child.legal_placements()
+    if next_choices:
+        grandchild = child.simulate_placement(next_choices[0])
 ```
 
 `clone()` copies every current future-affecting engine field without running
@@ -113,28 +111,36 @@ instance, and queue deque. RNG `getstate()`/`setstate()` preserves the stream
 exactly, including future bags, rather than restarting from a seed. Hold,
 availability, total lines, game-over state, and the entire queued stream are
 preserved. Identical state values allow root placements to execute on clones.
+Board construction normalizes supplied rows to tuples, so mutable scenario
+inputs cannot introduce aliasing into shared boards.
 
-`simulate_placement()` returns a frozen `SimulationResult` containing an
-independent mutable `game` and immutable `transition`. It calls the ordinary
+`simulate_placement()` returns an independent resulting `Game` directly and
+raises `ValueError` for an invalid or stale choice without changing the source.
+The prior metadata-returning API is now named `simulate_placement_result()`;
+callers that need `.game` and `.transition` should use that method. It returns a
+frozen `SimulationResult` containing an independent mutable `game` and immutable
+`transition`. It calls the ordinary
 `apply_placement()` path on that clone, including validation, locking, line
 clearing, and next-piece preparation. The requested placement identifies the
 placed piece; the resulting game exposes board, active piece, queue, and all
 other state for inspection. An invalid or stale choice returns an unaccepted
-transition and an unchanged independent clone. Neither successful nor rejected
-simulation changes the source. The returned game supports the same APIs for
+transition and an unchanged independent clone through the metadata API.
+Neither successful nor rejected simulation changes the source. The returned
+game supports the same APIs for
 further simulation. No evaluation or search policy is included.
 
 Run `python -m benchmarks.simulation` for repeatable infrastructure benchmarks.
 The fixture uses seed 42, an active T, and solid uneven columns of heights
-`(2, 3, 2, 1, 0, 0, 1, 2, 3, 2)`. Local Python 3.13 measurements (median of three
+`(2, 3, 2, 1, 0, 0, 1, 2, 3, 2)`. Local Python 3.13.0 on Windows AMD64
+measurements (median of three
 batches, machine-dependent) were:
 
 | Operation | Time | Batch size |
 | --- | ---: | ---: |
 | Clone | 0.014 ms | 1,000 |
-| Legal placement enumeration | 7.461 ms | 50 |
-| Simulate one existing placement | 7.568 ms | 50 |
-| Full two-ply expansion | 1,931.457 ms | 1 |
+| Legal placement enumeration | 7.573 ms | 50 |
+| Simulate one existing placement | 7.372 ms | 50 |
+| Full two-ply expansion | 3,423.204 ms | 1 |
 
 Each expansion enumerates and simulates all 34 children and 316 grandchildren.
 It discards the resulting states after counting them, without evaluating or

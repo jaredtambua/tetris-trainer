@@ -21,6 +21,9 @@ class Board:
     def __post_init__(self) -> None:
         if len(self.rows) != HEIGHT or any(len(row) != WIDTH for row in self.rows):
             raise ValueError(f"board must be {WIDTH}x{HEIGHT}")
+        # Enforce deep immutability even when a scenario supplies list rows.
+        # Game clones can then safely share every Board instance.
+        object.__setattr__(self, "rows", tuple(tuple(row) for row in self.rows))
 
     def occupied(self, x: int, y: int) -> bool:
         """Return collision state; cells above the visible board remain legal."""

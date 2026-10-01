@@ -166,7 +166,19 @@ class Game:
         clone.total_lines = self.total_lines
         return clone
 
-    def simulate_placement(self, placement: Placement) -> SimulationResult:
+    def simulate_placement(self, placement: Placement) -> Game:
+        """Return an independent future Game after a validated placement.
+
+        Raise ValueError for invalid or stale choices without changing the
+        source. Use simulate_placement_result when transition metadata or
+        non-raising rejection handling is needed.
+        """
+        result = self.simulate_placement_result(placement)
+        if not result.transition.accepted:
+            raise ValueError("placement is invalid, stale, or unreachable in this game")
+        return result.game
+
+    def simulate_placement_result(self, placement: Placement) -> SimulationResult:
         """Apply a choice on a fresh branch, leaving this game untouched.
 
         Invalid/stale choices return an unaccepted transition and an unchanged,

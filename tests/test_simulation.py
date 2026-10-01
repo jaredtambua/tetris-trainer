@@ -9,6 +9,80 @@ from tetris_trainer.pieces import Orientation, Tetromino
 
 
 class SimulationTests(unittest.TestCase):
+    def test_direct_api_returns_game_and_supports_recursive_simulation(self):
+        root = Game(101)
+        before = root.snapshot()
+        placement = root.legal_placements()[0]
+        child = root.simulate_placement(placement)
+        twin = root.simulate_placement(placement)
+        self.assertIsInstance(child, Game)
+        self.assertIsNot(child, root)
+        self.assertEqual(child.snapshot(), twin.snapshot())
+        real = root.clone()
+        self.assertTrue(real.apply_placement(placement).accepted)
+        self.assertEqual(child.snapshot(), real.snapshot())
+        parent_before = child.snapshot()
+        for choice in child.legal_placements():
+            grandchild = child.simulate_placement(choice)
+            repeated = twin.simulate_placement(choice)
+            self.assertIsInstance(grandchild, Game)
+            self.assertEqual(grandchild.snapshot(), repeated.snapshot())
+            self.assertIsNot(grandchild.randomizer, child.randomizer)
+            self.assertEqual(child.snapshot(), parent_before)
+            self.assertEqual(root.snapshot(), before)
+        child.apply(Action.HOLD)
+        self.assertEqual(twin.snapshot(), parent_before)
+        self.assertEqual(root.snapshot(), before)
+
+    def test_direct_api_rejects_stale_invalid_and_terminal_choices(self):
+        root = Game(7)
+        stale = root.legal_placements()[0]
+        root.apply(Action.MOVE_LEFT)
+        current = root.legal_placements()[0]
+        for invalid in (stale, None, replace(current, x=99)):
+            before = root.snapshot()
+            with self.assertRaises(ValueError):
+                root.simulate_placement(invalid)
+            self.assertEqual(root.snapshot(), before)
+        root.game_over = True
+        before = root.snapshot()
+        with self.assertRaises(ValueError):
+            root.simulate_placement(current)
+        self.assertEqual(root.snapshot(), before)
+
+    def test_direct_api_line_clear_matches_metadata_and_real_execution(self):
+        root = Game(42)
+        root.active = ActivePiece(Tetromino.I)
+        root.hold_used = True
+        root.board = Board().with_cells({
+            (x, 19): Tetromino.J for x in range(WIDTH) if x not in (3, 4, 5, 6)
+        })
+        before = root.snapshot()
+        placement = next(p for p in root.legal_placements()
+                         if set(p.cells) == {(x, 19) for x in (3, 4, 5, 6)})
+        child = root.simulate_placement(placement)
+        metadata = root.simulate_placement_result(placement)
+        self.assertEqual(child.snapshot(), metadata.game.snapshot())
+        self.assertEqual(child.total_lines, 1)
+        self.assertEqual(child.board, Board())
+        self.assertFalse(child.hold_used)
+        self.assertEqual(root.snapshot(), before)
+
+    def test_mutable_board_input_is_normalized_before_clone_sharing(self):
+        rows = [[None] * WIDTH for _ in range(20)]
+        root = Game(3)
+        root.board = Board(rows)
+        clone = root.clone()
+        before = root.snapshot()
+        rows[19][0] = Tetromino.Z
+        rows[0] = [Tetromino.J] * WIDTH
+        self.assertEqual(root.snapshot(), before)
+        self.assertEqual(clone.snapshot(), before)
+        self.assertIsInstance(root.board.rows, tuple)
+        self.assertTrue(all(isinstance(row, tuple) for row in root.board.rows))
+        clone.board = clone.board.with_cells({(0, 19): Tetromino.Z})
+        self.assertEqual(root.snapshot(), before)
+
     def test_clone_preserves_all_fields_without_initialization(self):
         game = Game(123)
         game.apply(Action.HOLD)
@@ -84,7 +158,7 @@ class SimulationTests(unittest.TestCase):
         for placement in root.legal_placements():
             real = root.clone()
             expected = real.apply_placement(placement)
-            result = root.simulate_placement(placement)
+            result = root.simulate_placement_result(placement)
             self.assertIsInstance(result, SimulationResult)
             self.assertEqual(result.transition, expected)
             self.assertEqual(result.game.snapshot(), real.snapshot())
@@ -97,7 +171,7 @@ class SimulationTests(unittest.TestCase):
         original = Game.apply_placement
         with patch.object(Game, 'apply_placement', autospec=True,
                           side_effect=original) as execute:
-            result = root.simulate_placement(placement)
+            result = root.simulate_placement_result(placement)
         execute.assert_called_once_with(result.game, placement)
         self.assertIsNot(result.game, root)
 
@@ -117,7 +191,7 @@ class SimulationTests(unittest.TestCase):
         expected_next = root.randomizer._pieces[0]
         placement = next(p for p in root.legal_placements()
                          if set(p.cells) == {(x, 19) for x in (3, 4, 5, 6)})
-        result = root.simulate_placement(placement)
+        result = root.simulate_placement_result(placement)
         self.assertEqual(result.transition.lines_cleared, 1)
         self.assertEqual(result.game.total_lines, 4)
         self.assertEqual(result.game.board, Board())
@@ -136,7 +210,7 @@ class SimulationTests(unittest.TestCase):
                                         for cell in ActivePiece(root.upcoming[0]).cells})
         root.active = ActivePiece(Tetromino.O, x=0, y=18)
         before = root.snapshot()
-        result = root.simulate_placement(root.legal_placements()[0])
+        result = root.simulate_placement_result(root.legal_placements()[0])
         self.assertTrue(result.transition.locked)
         self.assertTrue(result.transition.game_over)
         self.assertTrue(result.game.game_over)
@@ -149,7 +223,7 @@ class SimulationTests(unittest.TestCase):
         root.apply(Action.MOVE_LEFT)
         for invalid in (placement, None, replace(root.legal_placements()[0], x=99)):
             before = root.snapshot()
-            result = root.simulate_placement(invalid)
+            result = root.simulate_placement_result(invalid)
             self.assertFalse(result.transition.accepted)
             self.assertEqual(result.game.snapshot(), before)
             self.assertEqual(root.snapshot(), before)
@@ -160,15 +234,15 @@ class SimulationTests(unittest.TestCase):
         root = Game(101)
         before = root.snapshot()
         placement = root.legal_placements()[0]
-        first, second = root.simulate_placement(placement), root.simulate_placement(placement)
+        first, second = root.simulate_placement_result(placement), root.simulate_placement_result(placement)
         self.assertEqual(first.transition, second.transition)
         self.assertEqual(first.game.snapshot(), second.game.snapshot())
         parent_before = first.game.snapshot()
         next_placements = first.game.legal_placements()
         self.assertTrue(next_placements)
         for choice in next_placements:
-            left = first.game.simulate_placement(choice)
-            right = second.game.simulate_placement(choice)
+            left = first.game.simulate_placement_result(choice)
+            right = second.game.simulate_placement_result(choice)
             self.assertEqual(left.transition, right.transition)
             self.assertEqual(left.game.snapshot(), right.game.snapshot())
             self.assertEqual(first.game.snapshot(), parent_before)

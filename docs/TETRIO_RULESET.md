@@ -58,7 +58,9 @@ The following are PROJECT-SPECIFIC architecture and task-scope decisions:
   ordering and does not mutate the source game. Stale/invalid choices are
   rejected safely against current state.
 - Clones share immutable board/piece values and own separate RNG/queue state.
-  Simulation returns an independent Game and authoritative Transition; repeated
+  `simulate_placement()` returns an independent Game; `simulate_placement_result()`
+  additionally returns the authoritative Transition. Invalid direct simulation
+  raises ValueError; the metadata API returns an unaccepted transition. Repeated
   and multi-ply simulation must leave ancestors unchanged.
 - No gravity, scoring/attack/opponents, evaluator, ranking policy, or training
   framework is introduced by the current infrastructure. Future additions need

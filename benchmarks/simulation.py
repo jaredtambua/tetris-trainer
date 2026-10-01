@@ -2,6 +2,7 @@
 
 from statistics import median
 from timeit import repeat
+import platform
 
 from tetris_trainer import Game
 from tetris_trainer.board import Board
@@ -26,11 +27,9 @@ def two_ply(game):
     children = leaves = 0
     for placement in game.legal_placements():
         child = game.simulate_placement(placement)
-        assert child.transition.accepted
         children += 1
-        for choice in child.game.legal_placements():
-            leaf = child.game.simulate_placement(choice)
-            assert leaf.transition.accepted
+        for choice in child.legal_placements():
+            child.simulate_placement(choice)
             leaves += 1
     return children, leaves
 
@@ -38,7 +37,10 @@ def two_ply(game):
 def main():
     game = representative_game()
     before = game.snapshot()
-    placement = game.legal_placements()[0]
+    placements = game.legal_placements()
+    placement = placements[0]
+    print(f'Python {platform.python_version()} on {platform.system()} '
+          f'{platform.machine()}; seed=42; active=T; placements={len(placements)}')
     for label, operation, count in (
         ('clone', game.clone, 1000),
         ('legal_placements', game.legal_placements, 50),
