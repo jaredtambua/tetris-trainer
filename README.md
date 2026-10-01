@@ -112,6 +112,26 @@ and board and are observations, not test thresholds.
 
 ## Develop
 
+The [RL-ready environment contract](docs/RL_ENVIRONMENT.md) defines a headless
+212-integer observation, variable legal placement candidates, and factual
+transitions without a reward policy or ML framework:
+
+```python
+from tetris_trainer.environment import PlacementEnvironment
+
+env = PlacementEnvironment(seed=42)
+observation = env.reset(seed=42)
+actions = env.legal_actions()
+if actions:
+    result = env.step(actions[0])
+    observation = result.observation
+    print(result.facts.lines_cleared, result.terminated)
+```
+
+Use issued actions from the current decision; raw indices and stale handles
+are rejected. Hold is observed but remains outside the action space.
+Run `python -m benchmarks.environment` to measure basic environment overhead.
+
 ```sh
 make test
 make check

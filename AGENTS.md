@@ -24,8 +24,16 @@ architecture, restructure the source tree, or introduce placeholder packages.
   placements, and independent deterministic simulation. `benchmarks/simulation.py`
   measures branching infrastructure without evaluating placements.
   `benchmarks/baseline.py` measures complete one-ply decisions and feature cost.
+<<<<<<< HEAD
   `benchmarks/performance.py` separates cold/warm enumeration and captures
   comparable profiles and allocation peaks; see `docs/PLACEMENT_PERFORMANCE.md`.
+=======
+- `environment.py` owns the framework-free numerical observation, variable
+  placement-action handles, and factual episode transitions. It delegates all
+  mechanics to Game; no reward weights, learned hold actions, or training
+  algorithm live in this boundary. See `docs/RL_ENVIRONMENT.md` for contract v1
+  and `benchmarks/environment.py` for basic reset/step overhead measurements.
+>>>>>>> 08606dc (feat: add RL-ready placement environment)
 
 ## Non-negotiable principles
 
