@@ -16,9 +16,14 @@ architecture, restructure the source tree, or introduce placeholder packages.
 - `data/srs_plus.json` supplies the existing ordered rotation kick tables.
 - `ui.py` renders and maps keys to semantic engine actions; `__main__.py` is the
   desktop entry point. Headless consumers import the engine without Tk.
+- `baseline.py` owns four-feature extraction, the deterministic one-ply
+  `BaselineAgent`, structured decisions, and bounded headless runs. UI AI mode
+  uses that same agent and authoritative placement execution; it owns no score
+  or search rules. This is an untuned reference baseline, not the final learned AI.
 - `tests/` covers boards, actions, randomization, UI bindings, reachable
   placements, and independent deterministic simulation. `benchmarks/simulation.py`
   measures branching infrastructure without evaluating placements.
+  `benchmarks/baseline.py` measures complete one-ply decisions and feature cost.
 
 ## Non-negotiable principles
 

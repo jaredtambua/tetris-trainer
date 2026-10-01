@@ -62,8 +62,14 @@ The following are PROJECT-SPECIFIC architecture and task-scope decisions:
   additionally returns the authoritative Transition. Invalid direct simulation
   raises ValueError; the metadata API returns an unaccepted transition. Repeated
   and multi-ply simulation must leave ancestors unchanged.
-- No gravity, scoring/attack/opponents, evaluator, ranking policy, or training
-  framework is introduced by the current infrastructure. Future additions need
+- The separate one-ply baseline maximizes `-5 * holes - aggregate_height -
+  bumpiness + 10 * lines_cleared`, with first-enumerated tie breaking. It uses
+  authoritative isolated simulation without hold or future-piece lookahead.
+  These are untuned AI preferences, not TETR.IO gameplay scoring or rules.
+- UI watch mode schedules final placement decisions; this adds no engine gravity.
+  The same agent works headlessly and does not mutate the source while deciding.
+- No gravity, gameplay scoring/attack/opponents, learned evaluator, deeper
+  search policy, or training framework is introduced. Future additions need
   separately scoped tasks.
 
 ## Evidence inventory and maintenance
