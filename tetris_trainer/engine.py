@@ -143,6 +143,9 @@ class Game:
         self.hold_used = False
         self.game_over = False
         self.total_lines = 0
+        # One immutable, derived result; never part of future-affecting state.
+        # Full snapshot equality protects reuse even after public-field edits.
+        self._placement_cache: tuple[tuple[object, ...], tuple[Placement, ...]] | None = None
         self._spawn(self.randomizer.pop())
         self.randomizer.ensure(self.PREVIEW_COUNT)
 
@@ -164,6 +167,7 @@ class Game:
         clone.hold_used = self.hold_used
         clone.game_over = self.game_over
         clone.total_lines = self.total_lines
+        clone._placement_cache = self._placement_cache
         return clone
 
     def simulate_placement(self, placement: Placement) -> Game:
@@ -198,7 +202,12 @@ class Game:
         return True
 
     def _legal(self, piece: ActivePiece) -> bool:
-        return all(not self.board.occupied(x, y) for x, y in piece.cells)
+        # Use authoritative geometry/occupancy without allocating absolute-cell
+        # tuples and generators for every movement/rotation candidate.
+        for dx, dy in CELLS[piece.kind][piece.orientation]:
+            if self.board.occupied(piece.x + dx, piece.y + dy):
+                return False
+        return True
 
     def ghost(self) -> ActivePiece | None:
         if self.active is None:
@@ -277,6 +286,8 @@ class Game:
         if self.game_over or self.active is None or not self._legal(self.active):
             return ()
         source = self.snapshot()
+        if self._placement_cache is not None and self._placement_cache[0] == source:
+            return self._placement_cache[1]
         pending = deque([self.active])
         visited = {self.active}
         locks: dict[tuple[tuple[int, int], ...], Placement] = {}
@@ -299,7 +310,9 @@ class Game:
                 if candidate is not None and candidate not in visited:
                     visited.add(candidate)
                     pending.append(candidate)
-        return tuple(sorted(locks.values(), key=lambda p: (p.orientation, p.x, p.y)))
+        placements = tuple(sorted(locks.values(), key=lambda p: (p.orientation, p.x, p.y)))
+        self._placement_cache = (source, placements)
+        return placements
 
     def apply_placement(self, placement: Placement) -> Transition:
         """Reject stale/unreachable choices atomically; use authoritative locking."""
@@ -326,6 +339,7 @@ class Game:
 
     def _lock(self) -> Transition:
         assert self.active is not None
+        self._placement_cache = None
         # A piece unable to enter the visible matrix is a project-specific
         # first-version top-out. It is not partially written into the board.
         if any(y < 0 for _, y in self.active.cells):

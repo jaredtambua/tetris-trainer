@@ -1,0 +1,439 @@
+{
+  "environment": {
+    "python": "3.13.0",
+    "system": "Windows",
+    "machine": "AMD64"
+  },
+  "fixture": {
+    "seed": 42,
+    "active": "T",
+    "heights": [
+      2,
+      3,
+      2,
+      1,
+      0,
+      0,
+      1,
+      2,
+      3,
+      2
+    ]
+  },
+  "expansion": [
+    34,
+    316
+  ],
+  "operations": {
+    "cold_enumeration": {
+      "median_ms": 7.400960001784067,
+      "batch_size": 15,
+      "repeats": 3,
+      "profile": [
+        {
+          "function": "performance.py:31:<lambda>",
+          "calls": 1,
+          "self_ms": 0.021300000000000003,
+          "cumulative_ms": 24.051000000000002
+        },
+        {
+          "function": "engine.py:267:legal_placements",
+          "calls": 1,
+          "self_ms": 2.1843000000000004,
+          "cumulative_ms": 23.9507
+        },
+        {
+          "function": "engine.py:200:_legal",
+          "calls": 3483,
+          "self_ms": 1.7348000000000001,
+          "cumulative_ms": 12.618200000000002
+        },
+        {
+          "function": "engine.py:253:_rotate_piece",
+          "calls": 1686,
+          "self_ms": 2.5599000000000003,
+          "cumulative_ms": 11.583300000000001
+        },
+        {
+          "function": "engine.py:241:_move_piece",
+          "calls": 1686,
+          "self_ms": 0.6880000000000001,
+          "cumulative_ms": 8.203100000000001
+        },
+        {
+          "function": "~:0:<built-in method builtins.all>",
+          "calls": 3517,
+          "self_ms": 1.8625000000000003,
+          "cumulative_ms": 6.5529
+        },
+        {
+          "function": "engine.py:201:<genexpr>",
+          "calls": 16688,
+          "self_ms": 3.0104,
+          "cumulative_ms": 4.672600000000001
+        },
+        {
+          "function": "engine.py:40:cells",
+          "calls": 3551,
+          "self_ms": 2.8939,
+          "cumulative_ms": 4.454300000000001
+        },
+        {
+          "function": "board.py:28:occupied",
+          "calls": 13497,
+          "self_ms": 1.6622000000000001,
+          "cumulative_ms": 1.6622000000000001
+        },
+        {
+          "function": "engine.py:42:<genexpr>",
+          "calls": 17755,
+          "self_ms": 1.5604000000000002,
+          "cumulative_ms": 1.5604000000000002
+        },
+        {
+          "function": "engine.py:47:moved",
+          "calls": 1686,
+          "self_ms": 0.5349,
+          "cumulative_ms": 1.3684
+        },
+        {
+          "function": "<string>:24:__hash__",
+          "calls": 3752,
+          "self_ms": 0.6815,
+          "cumulative_ms": 1.0323
+        }
+      ],
+      "traced_retained_bytes": 181948,
+      "traced_peak_bytes": 260092,
+      "retained_allocation_blocks": 2850
+    },
+    "warm_enumeration": {
+      "median_ms": 7.662967999931425,
+      "batch_size": 50,
+      "repeats": 3,
+      "profile": [
+        {
+          "function": "engine.py:267:legal_placements",
+          "calls": 1,
+          "self_ms": 2.1469,
+          "cumulative_ms": 23.9515
+        },
+        {
+          "function": "engine.py:200:_legal",
+          "calls": 3483,
+          "self_ms": 1.6211000000000002,
+          "cumulative_ms": 12.4539
+        },
+        {
+          "function": "engine.py:253:_rotate_piece",
+          "calls": 1686,
+          "self_ms": 2.6100000000000003,
+          "cumulative_ms": 11.7329
+        },
+        {
+          "function": "engine.py:241:_move_piece",
+          "calls": 1686,
+          "self_ms": 0.6871,
+          "cumulative_ms": 8.116200000000001
+        },
+        {
+          "function": "~:0:<built-in method builtins.all>",
+          "calls": 3517,
+          "self_ms": 1.8473000000000002,
+          "cumulative_ms": 6.534000000000001
+        },
+        {
+          "function": "engine.py:201:<genexpr>",
+          "calls": 16688,
+          "self_ms": 2.9905,
+          "cumulative_ms": 4.6696
+        },
+        {
+          "function": "engine.py:40:cells",
+          "calls": 3551,
+          "self_ms": 2.8339000000000003,
+          "cumulative_ms": 4.4225
+        },
+        {
+          "function": "board.py:28:occupied",
+          "calls": 13497,
+          "self_ms": 1.6791000000000003,
+          "cumulative_ms": 1.6791000000000003
+        },
+        {
+          "function": "engine.py:42:<genexpr>",
+          "calls": 17755,
+          "self_ms": 1.5886000000000002,
+          "cumulative_ms": 1.5886000000000002
+        },
+        {
+          "function": "engine.py:47:moved",
+          "calls": 1686,
+          "self_ms": 0.5428000000000001,
+          "cumulative_ms": 1.4251
+        },
+        {
+          "function": "<string>:24:__hash__",
+          "calls": 3752,
+          "self_ms": 0.68,
+          "cumulative_ms": 1.0225
+        },
+        {
+          "function": "enum.py:198:__get__",
+          "calls": 3372,
+          "self_ms": 0.6856000000000001,
+          "cumulative_ms": 0.9570000000000001
+        }
+      ],
+      "traced_retained_bytes": 181884,
+      "traced_peak_bytes": 256220,
+      "retained_allocation_blocks": 2848
+    },
+    "simulation_after_enumeration": {
+      "median_ms": 7.771922000683844,
+      "batch_size": 50,
+      "repeats": 3,
+      "profile": [
+        {
+          "function": "performance.py:33:<lambda>",
+          "calls": 1,
+          "self_ms": 0.0011,
+          "cumulative_ms": 24.840300000000003
+        },
+        {
+          "function": "engine.py:169:simulate_placement",
+          "calls": 1,
+          "self_ms": 0.0008,
+          "cumulative_ms": 24.8392
+        },
+        {
+          "function": "engine.py:181:simulate_placement_result",
+          "calls": 1,
+          "self_ms": 0.003,
+          "cumulative_ms": 24.8384
+        },
+        {
+          "function": "engine.py:304:apply_placement",
+          "calls": 1,
+          "self_ms": 0.03590000000000001,
+          "cumulative_ms": 24.7849
+        },
+        {
+          "function": "engine.py:267:legal_placements",
+          "calls": 1,
+          "self_ms": 2.2656,
+          "cumulative_ms": 24.661
+        },
+        {
+          "function": "engine.py:200:_legal",
+          "calls": 3484,
+          "self_ms": 1.6761,
+          "cumulative_ms": 12.8372
+        },
+        {
+          "function": "engine.py:253:_rotate_piece",
+          "calls": 1686,
+          "self_ms": 2.6950000000000003,
+          "cumulative_ms": 12.039900000000001
+        },
+        {
+          "function": "engine.py:241:_move_piece",
+          "calls": 1686,
+          "self_ms": 0.7225,
+          "cumulative_ms": 8.362000000000002
+        },
+        {
+          "function": "~:0:<built-in method builtins.all>",
+          "calls": 3518,
+          "self_ms": 1.9162000000000001,
+          "cumulative_ms": 6.718100000000001
+        },
+        {
+          "function": "engine.py:201:<genexpr>",
+          "calls": 16693,
+          "self_ms": 3.0879000000000003,
+          "cumulative_ms": 4.7845
+        },
+        {
+          "function": "engine.py:40:cells",
+          "calls": 3554,
+          "self_ms": 2.9575,
+          "cumulative_ms": 4.571700000000001
+        },
+        {
+          "function": "board.py:28:occupied",
+          "calls": 13505,
+          "self_ms": 1.6971,
+          "cumulative_ms": 1.6971
+        }
+      ],
+      "traced_retained_bytes": 163008,
+      "traced_peak_bytes": 260092,
+      "retained_allocation_blocks": 2241
+    },
+    "cold_one_ply": {
+      "median_ms": 276.5559999970719,
+      "batch_size": 1,
+      "repeats": 5,
+      "profile": [
+        {
+          "function": "performance.py:34:<lambda>",
+          "calls": 1,
+          "self_ms": 0.004900000000000001,
+          "cumulative_ms": 862.5117000000001
+        },
+        {
+          "function": "baseline.py:74:decide",
+          "calls": 1,
+          "self_ms": 0.1598,
+          "cumulative_ms": 862.4647000000001
+        },
+        {
+          "function": "engine.py:267:legal_placements",
+          "calls": 35,
+          "self_ms": 78.9779,
+          "cumulative_ms": 855.9762000000001
+        },
+        {
+          "function": "engine.py:169:simulate_placement",
+          "calls": 34,
+          "self_ms": 0.0191,
+          "cumulative_ms": 836.7750000000001
+        },
+        {
+          "function": "engine.py:181:simulate_placement_result",
+          "calls": 34,
+          "self_ms": 0.06849999999999999,
+          "cumulative_ms": 836.7559
+        },
+        {
+          "function": "engine.py:304:apply_placement",
+          "calls": 34,
+          "self_ms": 1.2967,
+          "cumulative_ms": 835.5133
+        },
+        {
+          "function": "engine.py:200:_legal",
+          "calls": 121939,
+          "self_ms": 57.9487,
+          "cumulative_ms": 443.8903
+        },
+        {
+          "function": "engine.py:253:_rotate_piece",
+          "calls": 59010,
+          "self_ms": 94.0497,
+          "cumulative_ms": 416.77220000000005
+        },
+        {
+          "function": "engine.py:241:_move_piece",
+          "calls": 59010,
+          "self_ms": 25.6187,
+          "cumulative_ms": 290.6173
+        },
+        {
+          "function": "~:0:<built-in method builtins.all>",
+          "calls": 123129,
+          "self_ms": 65.933,
+          "cumulative_ms": 231.79350000000002
+        },
+        {
+          "function": "engine.py:201:<genexpr>",
+          "calls": 584250,
+          "self_ms": 106.134,
+          "cumulative_ms": 165.25500000000002
+        },
+        {
+          "function": "engine.py:40:cells",
+          "calls": 124387,
+          "self_ms": 102.43950000000001,
+          "cumulative_ms": 158.69350000000003
+        }
+      ],
+      "traced_retained_bytes": 209796,
+      "traced_peak_bytes": 323016,
+      "retained_allocation_blocks": 3047
+    },
+    "cold_two_ply": {
+      "median_ms": 2189.5853000460193,
+      "batch_size": 1,
+      "repeats": 3,
+      "profile": [
+        {
+          "function": "performance.py:35:<lambda>",
+          "calls": 1,
+          "self_ms": 0.014400000000000001,
+          "cumulative_ms": 6466.2978
+        },
+        {
+          "function": "simulation.py:25:two_ply",
+          "calls": 1,
+          "self_ms": 1.7061000000000002,
+          "cumulative_ms": 6466.2226
+        },
+        {
+          "function": "engine.py:267:legal_placements",
+          "calls": 385,
+          "self_ms": 867.1170000000001,
+          "cumulative_ms": 6405.9445000000005
+        },
+        {
+          "function": "engine.py:169:simulate_placement",
+          "calls": 350,
+          "self_ms": 0.1751,
+          "cumulative_ms": 5891.9101
+        },
+        {
+          "function": "engine.py:181:simulate_placement_result",
+          "calls": 350,
+          "self_ms": 0.5031,
+          "cumulative_ms": 5891.735000000001
+        },
+        {
+          "function": "engine.py:304:apply_placement",
+          "calls": 350,
+          "self_ms": 13.008500000000002,
+          "cumulative_ms": 5879.742800000001
+        },
+        {
+          "function": "engine.py:241:_move_piece",
+          "calls": 675810,
+          "self_ms": 281.601,
+          "cumulative_ms": 3380.907
+        },
+        {
+          "function": "engine.py:200:_legal",
+          "calls": 739405,
+          "self_ms": 361.4103,
+          "cumulative_ms": 2756.6945
+        },
+        {
+          "function": "~:0:<built-in method builtins.all>",
+          "calls": 753635,
+          "self_ms": 419.2721,
+          "cumulative_ms": 1438.7392000000002
+        },
+        {
+          "function": "engine.py:253:_rotate_piece",
+          "calls": 675810,
+          "self_ms": 486.45300000000003,
+          "cumulative_ms": 1387.6473
+        },
+        {
+          "function": "engine.py:201:<genexpr>",
+          "calls": 3479904,
+          "self_ms": 649.2367,
+          "cumulative_ms": 1012.2344
+        },
+        {
+          "function": "engine.py:40:cells",
+          "calls": 768565,
+          "self_ms": 655.0064,
+          "cumulative_ms": 1011.5599
+        }
+      ],
+      "traced_retained_bytes": 375264,
+      "traced_peak_bytes": 535796,
+      "retained_allocation_blocks": 3373
+    }
+  }
+}

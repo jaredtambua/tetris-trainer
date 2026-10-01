@@ -24,6 +24,8 @@ architecture, restructure the source tree, or introduce placeholder packages.
   placements, and independent deterministic simulation. `benchmarks/simulation.py`
   measures branching infrastructure without evaluating placements.
   `benchmarks/baseline.py` measures complete one-ply decisions and feature cost.
+  `benchmarks/performance.py` separates cold/warm enumeration and captures
+  comparable profiles and allocation peaks; see `docs/PLACEMENT_PERFORMANCE.md`.
 
 ## Non-negotiable principles
 
@@ -43,6 +45,11 @@ architecture, restructure the source tree, or introduce placeholder packages.
   values safely and independently copy mutable RNG/queues. Preserve all
   future-affecting state, and update `clone()`, `snapshot()`, and determinism
   tests together when adding state.
+- The engine's one-entry reachable-placement catalog is derived immutable
+  metadata, shared safely with clones and excluded from gameplay snapshots.
+  Reuse requires full snapshot equality; source/membership validation must remain.
+  Do not replace that guard with action-only invalidation or trust placement
+  provenance alone. Report cold versus warm timings when touching this path.
 - Prefer bounded tasks and minimal compatible edits over speculative rewrites.
   Preserve working human controls and existing project-specific behavior unless
   the requested scope explicitly changes them.

@@ -101,11 +101,11 @@ remain separate bounded work.
 
 Benchmark a complete decision with `python -m benchmarks.baseline`. It uses the
 same uneven-column, seed-42 active-T fixture as the simulation benchmark, reports
-placements evaluated, and separately times extraction/scoring. Candidate
-simulation revalidates reachability for every placement; repeated BFS,
+placements evaluated, and separately times extraction/scoring. Each timed
+decision starts from a fresh clone without cached enumeration. Fresh BFS,
 collision checks, and piece allocations dominate, while feature extraction is
-small. No placement/simulation optimization is included in this task.
-On Python 3.13.0 / Windows AMD64, the local median of five complete decisions
+small. Simulation safely reuses the same-state reachable-placement catalog.
+Before hot-path optimization, on Python 3.13.0 / Windows AMD64, the median of five decisions
 was 277.934 ms for 34 candidates; extraction plus scoring averaged 0.007 ms
 per call (median of three 1,000-call batches). Timings depend on the machine
 and board and are observations, not test thresholds.
@@ -155,7 +155,7 @@ use the existing collision rules and ordered SRS+ kicks. Visited states retain
 `(kind, orientation, x, y)` because equal geometry can have different rotation
 transitions. Grounded visible states are deduplicated by their sorted occupied
 cells; fixed traversal order selects a representative and results are sorted by
-orientation, x, and y. No paths are exposed. Execution rechecks reachability and
+orientation, x, and y. No paths are exposed. Execution validates reachable membership and
 uses the existing engine lock, clear, queue, hold-reset, and top-out behavior.
 Above-board lock attempts that would top out without writing cells are excluded.
 
@@ -167,12 +167,16 @@ rotations choose horizontal kicks before vertical kicks. This makes exploration
 finite without adding a gameplay ceiling; unusually high starting states add
 extra rows to explore. Changes to kick data should revisit this property.
 
-A local 100-call empty-board T measurement averaged approximately 8.4 ms per
+A pre-optimization 100-call empty-board T measurement averaged approximately 8.4 ms per
 enumeration (34 placements; machine-dependent). Collision checks, candidate
 allocation, and repeated exploration during placement validation are the main
 hotspots. This is a useful correctness baseline for simulated games, but high
 volume training will need representative throughput profiling before choosing
-optimizations. There is no cache or additional runtime dependency.
+further optimizations. The engine now keeps one immutable reachable-placement
+catalog per Game, guarded by the entire gameplay snapshot. Clones share this
+derived metadata; a state mismatch triggers fresh enumeration and locking
+releases it. Stale/invalid choices still require source equality and reachable
+membership. No global cache, transposition table, or runtime dependency is added.
 
 ## Independent simulation
 
@@ -214,7 +218,7 @@ further simulation. No evaluation or search policy is included.
 Run `python -m benchmarks.simulation` for repeatable infrastructure benchmarks.
 The fixture uses seed 42, an active T, and solid uneven columns of heights
 `(2, 3, 2, 1, 0, 0, 1, 2, 3, 2)`. Local Python 3.13.0 on Windows AMD64
-measurements (median of three
+pre-optimization measurements (median of three
 batches, machine-dependent) were:
 
 | Operation | Time | Batch size |
@@ -226,13 +230,21 @@ batches, machine-dependent) were:
 
 Each expansion enumerates and simulates all 34 children and 316 grandchildren.
 It discards the resulting states after counting them, without evaluating or
-ranking them. Reachability enumeration, particularly its repetition during
-safe placement execution, dominates cost; cloning is comparatively small.
+ranking them. These measurements preceded bounded reuse of same-state
+reachability results; current before/after evidence is linked below.
 Immutable board sharing avoids matrix deep copies. Clone cost is O(Q + R)
 for queue length Q and fixed-size RNG state R; simulation adds the existing
 reachability and lock/clear costs. This is a baseline for correct branching,
-but substantial lookahead workloads need profiling before optimization.
+but substantial lookahead workloads need profiling before further optimization.
 When adding future engine state, update both `clone()` and `snapshot()`.
+
+## Placement/simulation performance
+
+See [the measured optimization report](docs/PLACEMENT_PERFORMANCE.md) for profiles,
+before/after timings, allocation observations, and validation. Run
+`python -m benchmarks.performance --output performance.json` to repeat the full
+timing/profile/memory harness. It distinguishes fresh BFS from warm catalog
+reuse and measures complete one-/two-ply workloads without changing AI policy.
 
 ## First-version rules boundary
 
