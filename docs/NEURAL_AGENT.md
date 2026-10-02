@@ -6,6 +6,12 @@ engine, environment, baseline and human UI imports do not import it. ML tests
 require this extra (and skip explicitly when unavailable). No mechanics or
 TETR.IO rule statuses change. Environment contract v1 remains authoritative.
 
+The [AI roadmap](AI_ROADMAP.md) owns the planned learning/search direction.
+This foundation scores current-state placement descriptors and estimates V(s);
+it does not simulate resulting afterstates as neural inputs, perform deep search,
+or implement search supervision or RL fine-tuning. The planned afterstate model
+is a future bounded task, not a description of this implementation.
+
 ## Tensor contract
 
 `adapt_batch([(observation, issued_actions), ...], device='cpu')` copies public
@@ -134,7 +140,9 @@ simulation 0.049 ms, two-ply 140.622 ms (34 children, 316 leaves).
 
 ## Deferred decisions and limitations
 
-Training algorithm, objective/reward, advantage/return calculation, truncation
+The roadmap sets the qualitative versus objective and search-supervised path;
+exact reward implementation and RL fine-tuning algorithm (including whether PPO
+is used) remain undecided. Advantage/return calculation, truncation
 policy, optimizer, architecture tuning, categorical embeddings, recurrent memory,
 learned hold and hardware choice are future tasks. Preview-limited environment
 observations remain partially observable. No model-quality claims follow from

@@ -7,6 +7,16 @@ architecture or introduce placeholder packages. Preserve the existing source
 structure by default; do not perform speculative restructuring. Structural or
 package-layout changes require explicit authorization in the current bounded task.
 
+## Project direction
+
+[AI_ROADMAP.md](docs/AI_ROADMAP.md) is the source of truth for the future AI plan:
+single-agent optimization over own state, including future environment-supplied
+garbage, with reachable final placements, a strong search teacher, afterstate
+learning, search supervision, neural-guided runtime search and later RL fine-tuning.
+No opponent model is required and PPO is not selected. Keep planned features
+separate from today's untrained neural foundation; implement only the authorized
+bounded task. Baseline heuristics are not the final learning reward.
+
 ## Existing architecture
 
 The installed package lives in `src/tetris_trainer/`; module names below refer

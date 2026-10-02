@@ -4,6 +4,12 @@ A minimal keyboard-playable Tetris vertical slice with a deterministic,
 headless engine. **There is deliberately no gravity:** a piece stays in place
 until an input moves it.
 
+The long-term goal is strong TETR.IO-oriented play through planning and learned
+policy/value guidance over the agent's own state, including future garbage input.
+This is single-agent optimization; no opponent model is required. Search teaching,
+afterstate learning and later RL fine-tuning are **planned**, not implemented.
+See the [AI roadmap](docs/AI_ROADMAP.md) for the agreed direction and open decisions.
+
 ## Play
 
 Python 3.11+ with Tk support is required for the desktop application. Complete

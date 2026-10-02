@@ -42,6 +42,13 @@ The unittest document check validates required rows and this vocabulary.
 | Spin detection / scoring | INTENTIONALLY OMITTED | Rotation reachability exists; spin classification and scoring do not. No movement-path/scoring metadata is inferred. |
 | Opponent simulation | INTENTIONALLY OMITTED | No opponent state or mechanics. |
 
+Current INTENTIONALLY OMITTED statuses describe today's scope, not permanent
+roadmap exclusions. [AI_ROADMAP.md](AI_ROADMAP.md) plans required own-state versus
+mechanics in later bounded tasks, subject to evidence verification. Opponent
+modelling remains outside the product goal; environment-injected garbage does
+not require an opponent representation. No status changes or exact VS formulas
+are introduced by the roadmap.
+
 ## Project decisions, separate from external rules
 
 The following are PROJECT-SPECIFIC architecture and task-scope decisions:

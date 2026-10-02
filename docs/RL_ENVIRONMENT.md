@@ -5,6 +5,9 @@ boundary around the authoritative Game. It owns its game; no Game reference,
 rendering, heuristic features, reward policy, or learning algorithm is part of
 the observation contract. All existing project rules apply unchanged; see
 [TETRIO_RULESET.md](TETRIO_RULESET.md). No TO VERIFY behavior is resolved here.
+The [AI roadmap](AI_ROADMAP.md) owns planned search/learning and versus objectives;
+this contract describes only the current own-state placement boundary. Garbage,
+attack and related versus facts are not implemented or encoded in v1.
 
 ```python
 from tetris_trainer.environment import PlacementEnvironment
@@ -122,6 +125,8 @@ consumes facts and the previous/next observations in a separate component. It
 can use authoritative cleared lines, termination reason, total lines, chosen
 piece/pose, and observed board changes. This task neither defines weights nor
 adds attack, spin, combo, or B2B facts that the engine does not implement.
+Cleared lines are factual metadata, not automatically attack or the final reward;
+the roadmap's versus reward direction requires future authoritative mechanics.
 
 ## Hold extension
 

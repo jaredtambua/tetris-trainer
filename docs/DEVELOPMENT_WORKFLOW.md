@@ -2,6 +2,9 @@
 
 [AGENTS.md](../AGENTS.md) is the authoritative instruction set.
 [TETRIO_RULESET.md](TETRIO_RULESET.md) tracks evidence and local decisions.
+[AI_ROADMAP.md](AI_ROADMAP.md) owns future AI direction; consult it when scoping
+AI work. Its planned phases do not authorize implementation or change current
+contracts/rule statuses. Keep current behavior separate from roadmap intent.
 Start from the current checkout and preserve the source layout by default;
 structural changes require explicit authorization in the bounded task. Preserve
 engine/UI boundaries, placement system, and simulation infrastructure.
