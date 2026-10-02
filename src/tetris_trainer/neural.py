@@ -8,10 +8,11 @@ from typing import Sequence
 import torch
 from torch import Tensor, nn
 
-from .environment import CONTRACT_VERSION, Observation, PlacementAction, PlacementEnvironment
+from .environment import (CONTRACT_VERSION, OBSERVATION_SIZE, PLACEMENT_SIZE, Observation,
+                          PlacementAction, PlacementEnvironment)
 
-TENSOR_VERSION = 1
-CHECKPOINT_VERSION = 1
+TENSOR_VERSION = 2
+CHECKPOINT_VERSION = 2
 
 
 @dataclass(frozen=True)
@@ -24,28 +25,28 @@ class TensorBatch:
 
 def adapt_batch(samples: Sequence[tuple[Observation, Sequence[PlacementAction]]],
                 *, device: str | torch.device = 'cpu') -> TensorBatch:
-    """Copy public contract v1 rows; retain issued handles in exactly row order."""
+    """Copy public contract v2 rows; retain issued handles in exactly row order."""
     if not samples:
         raise ValueError('batch must contain at least one observation')
     actions = tuple(tuple(rows) for _, rows in samples)
     for observation, _ in samples:
-        if len(observation) != 212:
-            raise ValueError('expected environment v1 observation of length 212')
+        if len(observation) != OBSERVATION_SIZE:
+            raise ValueError(f'expected environment v2 observation of length {OBSERVATION_SIZE}')
     states = torch.tensor([obs for obs, _ in samples], dtype=torch.float32, device=device)
-    # Categorical IDs are scaled scalars in v1, not heuristic features.
+    # Preserve the original prefix scaling; appended factual fields remain raw.
     states[:, [200, 204, 206, 207, 208, 209, 210]] /= 7
     states[:, 201] /= 3
     states[:, 202] /= 10
     states[:, 203] /= 20
     count = max(map(len, actions))
-    candidates = torch.zeros((len(samples), count, 4), dtype=torch.float32, device=device)
+    candidates = torch.zeros((len(samples), count, PLACEMENT_SIZE), dtype=torch.float32, device=device)
     mask = torch.zeros((len(samples), count), dtype=torch.bool, device=device)
     for i, rows in enumerate(actions):
         if rows:
             candidates[i, :len(rows)] = torch.tensor([row.values for row in rows],
                                                     dtype=torch.float32, device=device)
             mask[i, :len(rows)] = True
-    candidates /= torch.tensor([7, 3, 10, 20], dtype=torch.float32, device=device)
+    candidates /= torch.tensor([7, 3, 10, 20, 2], dtype=torch.float32, device=device)
     if not torch.isfinite(states).all() or not torch.isfinite(candidates).all():
         raise ValueError('tensor representation must be finite')
     return TensorBatch(states, candidates, mask, actions)
@@ -72,15 +73,15 @@ class PlacementPolicy(nn.Module):
         super().__init__()
         self.config = config
         h = config.hidden_size
-        self.encoder = nn.Sequential(nn.Linear(212, h), nn.ReLU(), nn.Linear(h, h), nn.ReLU())
-        self.scorer = nn.Sequential(nn.Linear(h + 4, h), nn.ReLU(), nn.Linear(h, 1))
+        self.encoder = nn.Sequential(nn.Linear(OBSERVATION_SIZE, h), nn.ReLU(), nn.Linear(h, h), nn.ReLU())
+        self.scorer = nn.Sequential(nn.Linear(h + PLACEMENT_SIZE, h), nn.ReLU(), nn.Linear(h, 1))
         self.value_head = nn.Linear(h, 1)
 
     def forward(self, states: Tensor, candidates: Tensor, mask: Tensor) -> PolicyOutput:
-        if (states.ndim != 2 or states.shape[1] != 212 or candidates.ndim != 3
-                or candidates.shape[0] != states.shape[0] or candidates.shape[2] != 4
+        if (states.ndim != 2 or states.shape[1] != OBSERVATION_SIZE or candidates.ndim != 3
+                or candidates.shape[0] != states.shape[0] or candidates.shape[2] != PLACEMENT_SIZE
                 or mask.shape != candidates.shape[:2] or mask.dtype != torch.bool):
-            raise ValueError('expected states [B,212], candidates [B,N,4], bool mask [B,N]')
+            raise ValueError(f'expected states [B,{OBSERVATION_SIZE}], candidates [B,N,{PLACEMENT_SIZE}], bool mask [B,N]')
         embedding = self.encoder(states)
         expanded = embedding[:, None, :].expand(-1, candidates.shape[1], -1)
         logits = self.scorer(torch.cat((expanded, candidates), dim=-1)).squeeze(-1)

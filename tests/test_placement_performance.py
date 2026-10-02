@@ -20,7 +20,10 @@ def pose(piece):
 
 
 def state_digest(game):
-    """Hash all future-affecting state with JSON, independent of cache fields."""
+    """Hash legacy gameplay state against the unchanged pre-versus fixture.
+
+    New versus-state preservation is independently covered in test_versus.
+    """
     state = {
         'board': [[cell.value if cell is not None else None for cell in row]
                   for row in game.board.rows],
@@ -58,7 +61,13 @@ def scenarios():
 def capture_semantics():
     cases = {}
     for name, game in scenarios():
-        placements = game.legal_placements()
+        # Preserve every legacy geometry/order/simulation assertion. New Spin
+        # variants are independently checked by the history-aware reference
+        # graph in test_versus; this historical fixture predates their metadata.
+        by_geometry = {}
+        for placement in game.legal_placements():
+            by_geometry.setdefault(tuple(sorted(placement.cells)), placement)
+        placements = tuple(by_geometry.values())
         decision = BaselineAgent().decide(game)
         cases[name] = {
             'placements': [pose(p) for p in placements],
@@ -77,7 +86,7 @@ class PlacementPerformanceTests(unittest.TestCase):
         game = representative_game()
         before = game.snapshot()
         placements = game.legal_placements()
-        with patch.object(Game, '_rotate_piece', side_effect=AssertionError('redundant BFS')):
+        with patch.object(Game, '_rotation_result', side_effect=AssertionError('redundant BFS')):
             self.assertEqual(game.legal_placements(), placements)
             for choice in placements:
                 first = game.simulate_placement(choice)

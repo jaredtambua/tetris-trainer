@@ -1,8 +1,9 @@
 # AI roadmap
 
-This is the source of truth for the forward-looking AI plan. All phases below
-are design intent, not implemented functionality. Changes require later bounded
-tasks; this roadmap does not authorize implementation.
+This is the source of truth for the forward-looking AI plan. Phase A records
+the current bounded foundation; the remaining phases are design intent, not
+implemented functionality. Changes require later bounded tasks; this roadmap
+does not authorize implementation.
 
 ## Product objective and own-state model
 
@@ -25,11 +26,14 @@ conditions without an opponent neural model.
 Today the repository has one authoritative headless engine, reachable-placement
 enumeration, deterministic isolated simulation, an untuned one-ply BaselineAgent,
 measured placement/simulation optimizations, framework-free environment contract
-v1, and an optional **UNTRAINED** neural policy/value foundation with inference,
+v2, and an optional **UNTRAINED** neural policy/value foundation with inference,
 detached rollout records and versioned local checkpoints. See
 [RL_ENVIRONMENT.md](RL_ENVIRONMENT.md) and [NEURAL_AGENT.md](NEURAL_AGENT.md).
-There are no garbage/attack/combo/B2B/spin-scoring mechanics, beam-search teacher,
-afterstate learner, search distillation, reward calculations or RL trainer.
+The own-board versus foundation now supplies garbage identity, supplied-hole
+pending events/insertion, cancellation, clear/Spin facts, combo/B2B and attack.
+See [VERSUS_MECHANICS.md](VERSUS_MECHANICS.md) for verified rules and local
+boundaries; this is not full live Tetra League parity. There is no beam-search
+teacher, afterstate learner, search distillation, reward calculation or RL trainer.
 
 Strategic actions remain reachable **final legal placements**, not learned
 keyboard sequences. Human controls use semantic actions. The same authoritative
@@ -47,14 +51,12 @@ inspiration from publicly visible MochBot/Fusion approaches, while keeping our
 own implementation and architecture. This is a design reference, not a verified
 claim about those systems' internals or an external rules source.
 
-### A — Authoritative versus mechanics
+### A — Authoritative versus mechanics foundation (implemented with boundaries)
 
-Before serious training, implement only the mechanics needed by the objective:
-garbage representation, insertion and pending behavior, attack calculation,
-combo, B2B, relevant spin/clear classification and other required versus-state.
-Selected TETR.IO-compatible rules must follow [TETRIO_RULESET.md](TETRIO_RULESET.md).
-Current omissions do not imply permanent exclusion; external rules remain
-unverified until evidence is recorded. No such mechanics are added by this plan.
+The bounded own-board foundation is implemented; its selected rules and omitted
+live timing/opening behavior are recorded in [TETRIO_RULESET.md](TETRIO_RULESET.md).
+Remaining external parity gaps require later bounded tasks before claiming a
+complete Tetra League simulator. No garbage scenario generator is implemented.
 
 ### B — Strong offline search teacher
 
@@ -70,7 +72,7 @@ slower than the eventual runtime agent; it generates high-quality learning targe
 Evaluate the actual result of each candidate: current state → placement →
 authoritative simulation → resulting afterstate → neural evaluation. Learn which
 resulting states/placements are promising. The current model instead encodes the
-current 212-value observation and scores four-value placement descriptors with a
+current 929-value observation and scores five-value placement descriptors with a
 shared scorer; its value head evaluates current state. It does not simulate
 candidate afterstates as neural inputs. The final afterstate architecture is
 undecided and requires a separately scoped change.
@@ -113,7 +115,7 @@ keyboard execution. Any efficiency/speed treatment needs an explicit later desig
 The baseline's holes, bumpiness and aggregate-height weights are debugging
 heuristics, not the final learning objective. Useful board structure should be
 learned through future versus returns. Ordinary line clears are not automatically
-attack. Current environment facts cannot supply the unimplemented versus signals.
+attack. Current environment facts now supply the bounded profile's versus signals.
 Before any exact VS formula or attack table becomes normative, verify a current
 authoritative source and record its mode/version, evidence and rule status.
 No external mechanic is promoted to CONFIRMED here.

@@ -35,16 +35,16 @@ The unittest document check validates required rows and this vocabulary.
 | Line clearing | TO VERIFY | All complete visible rows are removed together; remaining rows retain order and empty rows are prepended. Total cleared lines accumulates. Tests confirm local single/multiple clears; no external compatibility source is recorded. |
 | Gravity | INTENTIONALLY OMITTED | No tick/update-driven movement. Time passing cannot change engine state; inputs alone move pieces. |
 | Lock delay | INTENTIONALLY OMITTED | No timer, automatic grounded locking, or reset counter. Hard drop or validated placement execution invokes locking. |
-| Attack | INTENTIONALLY OMITTED | No attack calculation or outgoing attack metadata. |
-| Garbage | INTENTIONALLY OMITTED | No incoming/outgoing garbage, cancellation, or insertion. |
-| Combos | INTENTIONALLY OMITTED | No combo state or scoring. |
-| Back-to-back | INTENTIONALLY OMITTED | No B2B state or scoring. |
-| Spin detection / scoring | INTENTIONALLY OMITTED | Rotation reachability exists; spin classification and scoring do not. No movement-path/scoring metadata is inferred. |
+| Attack | CONFIRMED | Current-client attack constants, multiplier/max floor, additive All Clear and flat garbage-clear bonus implemented; see [versus evidence](VERSUS_MECHANICS.md). Full match timing/alternate profiles are excluded. |
+| Garbage | PROJECT-SPECIFIC | Immutable cell tuples with a GarbageCell sentinel; explicit holes/readiness, FIFO ordinary 1:1 cancellation and cap-eight no-clear insertion. Current-client evidence confirms cancellation eligibility, cap and clear blocking; queue capacity, readiness and visible overflow are local boundaries. See [versus evidence](VERSUS_MECHANICS.md). |
+| Combos | CONFIRMED | Consecutive clears increment; no-clear resets. Current client AnnounceLines uses multiplier plus logarithmic minimum and DOWN rounding. See [versus evidence](VERSUS_MECHANICS.md). |
+| Back-to-back | CONFIRMED | Current TL charging profile: difficult clears and All Clears increment, ordinary clears break, no-clear preserves; displayed count four charges Surge. Aggregate Surge recorded, packet segmentation omitted. See [versus evidence](VERSUS_MECHANICS.md). |
+| Spin detection / scoring | CONFIRMED | Current-client All-Mini+ classifications use authoritative rotations, stored rotation-time Spin flags, T corners/kick upgrade and immobile Mini fallback. Failed moves preserve flags; horizontal/soft-drop movement invalidates; hard drop preserves. Full geometry/kick-table parity remains TO VERIFY. See [versus evidence](VERSUS_MECHANICS.md). |
 | Opponent simulation | INTENTIONALLY OMITTED | No opponent state or mechanics. |
 
 Current INTENTIONALLY OMITTED statuses describe today's scope, not permanent
-roadmap exclusions. [AI_ROADMAP.md](AI_ROADMAP.md) plans required own-state versus
-mechanics in later bounded tasks, subject to evidence verification. Opponent
+roadmap exclusions. Own-state versus mechanics now have a bounded foundation;
+[AI_ROADMAP.md](AI_ROADMAP.md) keeps search and learning planned. Opponent
 modelling remains outside the product goal; environment-injected garbage does
 not require an opponent representation. No status changes or exact VS formulas
 are introduced by the roadmap.
@@ -58,8 +58,9 @@ The following are PROJECT-SPECIFIC architecture and task-scope decisions:
 - Headless, deterministic, seedable operation is required. Python RNG cloning
   guarantees the same continuation within this engine/runtime; it does not
   promise TETR.IO seeds or cross-version serialized replay compatibility.
-- AI decisions use immutable reachable final placements, deduplicated by final
-  occupied cells. BFS begins at the current pose and uses engine movement and
+- AI decisions use immutable reachable final placements, distinguished by final
+  occupied cells and Spin classification. BFS begins at the current pose and
+  uses engine movement and
   rotations. Grounded above-board top-out attempts are excluded from placements.
 - Hold is separate from the placement action space. Enumeration has stable
   ordering and does not mutate the source game. Stale/invalid choices are
@@ -75,7 +76,7 @@ The following are PROJECT-SPECIFIC architecture and task-scope decisions:
   These are untuned AI preferences, not TETR.IO gameplay scoring or rules.
 - UI watch mode schedules final placement decisions; this adds no engine gravity.
   The same agent works headlessly and does not mutate the source while deciding.
-- No gravity, gameplay scoring/attack/opponents or deeper search policy is
+- No gravity, opponents or deeper search policy is
   introduced. The optional neural foundation supplies an untrained PyTorch
   policy/value model above the environment; it adds no reward objective or RL
   training algorithm. Future additions need separately scoped tasks.
@@ -86,9 +87,10 @@ Inspected local evidence: `README.md`, `board.py`, `pieces.py`, `engine.py`,
 `data/srs_plus.json`, and the board/engine/randomizer/placement/simulation tests.
 These establish implementation behavior and regression coverage. The JSON's
 source description and README's compatibility wording are claims, not a
-reproducible external verification record. There are currently **no CONFIRMED
-external TETR.IO mechanics in this register**. This documentation task does not
-alter geometry, kick tables, or gameplay to resolve that evidence gap.
+reproducible external verification record. Current versus facts have first-party
+client evidence, dated and fingerprinted in
+[VERSUS_MECHANICS.md](VERSUS_MECHANICS.md). This does not promote the older
+geometry, spawn, kick-table or top-out claims to full external parity.
 
 Research only a required uncertainty for an approved bounded task. Prefer
 official TETR.IO documentation or inspectable authoritative behavior; record

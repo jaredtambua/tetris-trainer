@@ -26,8 +26,13 @@ running tests, demos or the application; repository-root imports are insufficien
 - `src/tetris_trainer/engine.py` owns `Game`, semantic `Action` handling, immutable
   `ActivePiece`, `Transition`, `Placement`, and `SimulationResult` values, the
   seedable `BagRandomizer`, placement reachability, cloning, and simulation.
+  It also owns rotation history, combo/B2B and pending-garbage resolution.
+- `versus.py` owns immutable clear/attack/garbage facts and pure attack rules;
+  see `docs/VERSUS_MECHANICS.md` for the TL-oriented profile and explicit local
+  boundaries. It adds no reward, opponent or training logic.
 - `src/tetris_trainer/board.py` owns immutable `Board` occupancy, locking, and line
-  clearing. `pieces.py` owns tetromino geometry and orientations. These modules
+  clearing, garbage identity and supplied-hole insertion. `pieces.py` owns
+  tetromino geometry and orientations. These modules
   form one authoritative engine, not competing rules implementations.
 - `data/srs_plus.json` supplies the existing ordered rotation kick tables.
 - `ui.py` renders and maps keys to semantic engine actions; `__main__.py` is the
@@ -45,7 +50,7 @@ running tests, demos or the application; repository-root imports are insufficien
 - `environment.py` owns the framework-free numerical observation, variable
   placement-action handles, and factual episode transitions. It delegates all
   mechanics to Game; no reward weights, learned hold actions, or training
-  algorithm live in this boundary. See `docs/RL_ENVIRONMENT.md` for contract v1
+  algorithm live in this boundary. See `docs/RL_ENVIRONMENT.md` for contract v2
   and `benchmarks/environment.py` for basic reset/step overhead measurements.
 - `neural.py` owns the optional, UNTRAINED PyTorch tensor adapter, shared
   variable-placement policy/value model, inference wrapper, detached rollout
@@ -56,7 +61,7 @@ running tests, demos or the application; repository-root imports are insufficien
 ## Non-negotiable principles
 
 - `neural.py` is the optional PyTorch policy/value, tensor-adapter, inference,
-  rollout-data and checkpoint layer above environment contract v1. See
+  rollout-data and checkpoint layer above environment contract v2. See
   `docs/NEURAL_AGENT.md`; it owns no mechanics, rewards or RL optimizer. Engine,
   environment, baseline and UI must not import this layer. Install `.[ml]` for
   neural test coverage and use `benchmarks.neural` for CPU overhead checks.

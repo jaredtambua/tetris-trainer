@@ -3,13 +3,31 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import Enum
 
 from .pieces import Tetromino
 
 
 WIDTH = 10
 HEIGHT = 20
-Cell = Tetromino | None
+class GarbageCell(str, Enum):
+    """Non-tetromino occupancy stored in the authoritative board rows."""
+
+    GARBAGE = "G"
+
+
+Cell = Tetromino | GarbageCell | None
+
+
+@dataclass(frozen=True, slots=True)
+class LineClearResult:
+    board: "Board"
+    cleared_rows: tuple[int, ...]
+    garbage_lines: int
+
+    @property
+    def cleared_lines(self) -> int:
+        return len(self.cleared_rows)
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,12 +56,44 @@ class Board:
         return Board(tuple(tuple(row) for row in rows))
 
     def clear_lines(self) -> tuple["Board", int]:
-        remaining = [row for row in self.rows if any(cell is None for cell in row)]
-        cleared = HEIGHT - len(remaining)
-        empty = [tuple(None for _ in range(WIDTH)) for _ in range(cleared)]
-        return Board(tuple(empty + remaining)), cleared
+        result = self.clear_lines_result()
+        return result.board, result.cleared_lines
 
-    def with_cells(self, cells: dict[tuple[int, int], Tetromino]) -> "Board":
+    def clear_lines_result(self) -> LineClearResult:
+        """Clear full rows, retaining their original indices and garbage facts."""
+        cleared_rows = tuple(
+            y for y, row in enumerate(self.rows) if all(cell is not None for cell in row)
+        )
+        remaining = [row for row in self.rows if any(cell is None for cell in row)]
+        cleared = len(cleared_rows)
+        empty = [tuple(None for _ in range(WIDTH)) for _ in range(cleared)]
+        garbage_lines = sum(
+            any(cell is GarbageCell.GARBAGE for cell in self.rows[y])
+            for y in cleared_rows
+        )
+        return LineClearResult(Board(tuple(empty + remaining)), cleared_rows, garbage_lines)
+
+    def insert_garbage(self, holes: tuple[int, ...]) -> tuple["Board", bool]:
+        """Raise supplied rows in order, reporting occupied cells lost above view.
+
+        Each supplied hole describes one new bottom row. This visible-board
+        insertion boundary does not model hidden rows or garbage timing.
+        """
+        holes = tuple(holes)
+        if any(type(hole) is not int or not 0 <= hole < WIDTH for hole in holes):
+            raise ValueError(f"garbage holes must be integer columns in [0, {WIDTH})")
+        if not holes:
+            return self, False
+        added = tuple(
+            tuple(None if x == hole else GarbageCell.GARBAGE for x in range(WIDTH))
+            for hole in holes
+        )
+        combined = self.rows + added
+        discarded = combined[:-HEIGHT]
+        overflow = any(cell is not None for row in discarded for cell in row)
+        return Board(combined[-HEIGHT:]), overflow
+
+    def with_cells(self, cells: dict[tuple[int, int], Tetromino | GarbageCell]) -> "Board":
         """Convenience constructor used by scenario builders and tests."""
         rows = [list(row) for row in self.rows]
         for (x, y), kind in cells.items():

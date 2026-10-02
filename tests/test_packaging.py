@@ -16,7 +16,7 @@ import tetris_trainer
 from tetris_trainer.environment import PlacementEnvironment
 env = PlacementEnvironment(42)
 assert env.legal_actions()
-assert len(env.observe()) == 212
+assert len(env.observe()) == 929
 assert 'torch' not in sys.modules
 assert 'tkinter' not in sys.modules
 data = files('tetris_trainer').joinpath('data/srs_plus.json').read_text()

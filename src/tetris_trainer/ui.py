@@ -9,6 +9,7 @@ from .board import HEIGHT, WIDTH
 from .baseline import BaselineAgent, Decision
 from .engine import Action, Game
 from .pieces import CELLS, Orientation, Tetromino
+from .board import GarbageCell
 
 
 KEY_BINDINGS: dict[str, Action] = {
@@ -35,6 +36,7 @@ CONTROLS = (
 )
 
 COLORS = {
+    GarbageCell.GARBAGE: "#888888",
     Tetromino.I: "#31c7ef",
     Tetromino.J: "#5a65ad",
     Tetromino.L: "#ef7921",

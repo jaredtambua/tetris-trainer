@@ -8,7 +8,7 @@ from tetris_trainer.board import Board, HEIGHT, WIDTH
 from tetris_trainer.engine import Action, ActivePiece, Game
 from tetris_trainer.environment import (
     ACTIVE_SLICE, BOARD_SHAPE, BOARD_SLICE, CONTRACT_VERSION, HOLD_SLICE,
-    OBSERVATION_SIZE, PIECE_IDS, QUEUE_LENGTH, QUEUE_SLICE, TERMINATED_INDEX,
+    OBSERVATION_SIZE, PIECE_IDS, QUEUE_LENGTH, QUEUE_SLICE, SPIN_IDS, TERMINATED_INDEX,
     PlacementEnvironment, encode_observation,
 )
 from tetris_trainer.pieces import Orientation, Tetromino
@@ -18,10 +18,10 @@ class ObservationTests(unittest.TestCase):
     def test_exact_shape_layout_and_numerical_types(self):
         env = PlacementEnvironment(42)
         values = env.observe()
-        self.assertEqual(CONTRACT_VERSION, 1)
+        self.assertEqual(CONTRACT_VERSION, 2)
         self.assertEqual(BOARD_SHAPE, (20, 10))
-        self.assertEqual(OBSERVATION_SIZE, 212)
-        self.assertEqual(len(values), 212)
+        self.assertEqual(OBSERVATION_SIZE, 929)
+        self.assertEqual(len(values), 929)
         self.assertIsInstance(values, tuple)
         self.assertTrue(all(type(value) is int for value in values))
         self.assertEqual(values[BOARD_SLICE], (0,) * 200)
@@ -30,7 +30,7 @@ class ObservationTests(unittest.TestCase):
         self.assertEqual(QUEUE_SLICE, slice(206, 211))
         self.assertEqual(QUEUE_LENGTH, 5)
         self.assertEqual(TERMINATED_INDEX, 211)
-        self.assertEqual(values[-1], 0)
+        self.assertEqual(values[TERMINATED_INDEX], 0)
         with self.assertRaises(TypeError):
             values[0] = 1
 
@@ -98,7 +98,7 @@ class ActionAndTransitionTests(unittest.TestCase):
         for index, (candidate, placement) in enumerate(zip(candidates, placements)):
             self.assertEqual(candidate.index, index)
             self.assertEqual(candidate.values, (PIECE_IDS[placement.kind], int(placement.orientation),
-                                                placement.x, placement.y))
+                                                placement.x, placement.y, SPIN_IDS[placement.spin]))
             self.assertEqual(candidate._placement, placement)
         self.assertEqual(len(candidates), len(placements))
         self.assertEqual(candidates, PlacementEnvironment(42).legal_actions())
@@ -131,7 +131,7 @@ class ActionAndTransitionTests(unittest.TestCase):
         foreign = PlacementEnvironment(42).legal_actions()[0]
         invalid = (None, 0, True, 0.0, candidate.values, foreign,
                    replace(candidate, index=-1), replace(candidate, index=True),
-                   replace(candidate, index=0.0), replace(candidate, values=(1, 0, 99, 99)),
+                   replace(candidate, index=0.0), replace(candidate, values=(1, 0, 99, 99, 0)),
                    replace(candidate))
         for action in invalid:
             before = env._game.snapshot()
@@ -175,7 +175,7 @@ class ActionAndTransitionTests(unittest.TestCase):
         game.board = Board().with_cells({(x, 19): Tetromino.J for x in range(WIDTH)
                                         if x not in (3, 4, 5, 6)})
         env = PlacementEnvironment.from_game(game)
-        action = next(a for a in env.legal_actions() if a.values == (1, 0, 3, 18))
+        action = next(a for a in env.legal_actions() if a.values == (1, 0, 3, 18, 0))
         before = game.snapshot()
         result = env.step(action)
         self.assertEqual(result.facts.lines_cleared, 1)

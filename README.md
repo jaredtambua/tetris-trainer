@@ -183,7 +183,7 @@ python -m benchmarks.neural
 Install the ML extra to run neural tests; engine/UI/baseline usage needs no torch.
 
 The [RL-ready environment contract](docs/RL_ENVIRONMENT.md) defines a headless
-212-integer observation, variable legal placement candidates, and factual
+929-integer observation (contract v2), variable legal placement candidates, and factual
 transitions without a reward policy or ML framework:
 
 ```python
@@ -231,7 +231,7 @@ if placements:
     result = game.apply_placement(placements[0])
 ```
 
-`Placement` is an immutable value with `kind`, `orientation`, `x`, `y`, and
+`Placement` is an immutable value with `kind`, `orientation`, `x`, `y`, `spin`, and
 derived `cells`. It also retains a private originating-state snapshot. Applying
 a stale, manually constructed, or currently unreachable placement returns an
 unaccepted `Transition` without changing the game. Enumerate again after any
@@ -244,13 +244,17 @@ human actions and search call the same engine movement/rotation helpers, which
 use the existing collision rules and ordered SRS+ kicks. Visited states retain
 `(kind, orientation, x, y)` because equal geometry can have different rotation
 transitions. Grounded visible states are deduplicated by their sorted occupied
-cells; fixed traversal order selects a representative and results are sorted by
-orientation, x, and y. No paths are exposed. Execution validates reachable membership and
+cells and factual Spin outcome; fixed traversal order preserves the original
+geometry representative and retains distinct Spin witnesses. Original geometry
+representatives are sorted by orientation, x, and y; additional Spin outcomes
+follow in that same sort order. Witness paths remain private. Execution validates reachable membership and
 uses the existing engine lock, clear, queue, hold-reset, and top-out behavior.
 Above-board lock attempts that would top out without writing cells are excluded.
 
-For V reachable states, E manipulation edges, and P unique placements, search
-costs O(V + E + P log P) time and O(V + P) space. There are six attempted edges
+For V reachable states, E manipulation edges, P unique placements and maximum
+witness path length L, search costs O(V + E + P L + P log P) time and O(V + P L)
+space. BFS stores predecessor links and builds immutable witnesses only for
+final outcomes. There are six attempted edges
 per state and a fixed number of kicks, so exploration is effectively O(V).
 The current SRS+ tables cannot repeatedly climb above an empty board: wall-only
 rotations choose horizontal kicks before vertical kicks. This makes exploration
@@ -270,6 +274,27 @@ membership. No global cache, transposition table, or runtime dependency is added
 
 ## Independent simulation
 
+The [versus foundation](docs/VERSUS_MECHANICS.md) resolves own-board attack and
+garbage facts through that same engine. Supply explicit incoming rows without
+an opponent or garbage generator:
+
+```python
+from tetris_trainer import GarbageEvent
+
+game.enqueue_garbage(GarbageEvent((4, 4, 7), ready=True))
+placements = game.legal_placements()  # previous handles are now stale
+if placements:
+    outcome = game.simulate_placement_result(placements[0])
+    print(outcome.transition.clear_event)
+```
+
+Clears report garbage rows removed, attack, cancellation and outgoing remainder.
+On a non-clear lock, up to eight ready rows enter the board after cancellation;
+unready packets remain queued.
+Readiness is supplied explicitly; no live timing, opponent, reward or training
+logic is introduced. See the rules register for current TL evidence and local
+boundaries (including the 256-row pending limit and visible-board top-out).
+
 ```python
 branch = game.clone()
 placements = game.legal_placements()
@@ -286,7 +311,8 @@ values are shared safely; each clone owns a separate randomizer, `random.Random`
 instance, and queue deque. RNG `getstate()`/`setstate()` preserves the stream
 exactly, including future bags, rather than restarting from a seed. Hold,
 availability, total lines, game-over state, and the entire queued stream are
-preserved. Identical state values allow root placements to execute on clones.
+preserved, along with rotation history, combo/B2B and immutable pending events.
+Identical state values allow root placements to execute on clones.
 Board construction normalizes supplied rows to tuples, so mutable scenario
 inputs cannot introduce aliasing into shared boards.
 

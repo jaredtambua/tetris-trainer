@@ -1,13 +1,13 @@
-# Placement environment contract v1
+# Placement environment contract v2
 
 `tetris_trainer.environment.PlacementEnvironment` is a headless, framework-free
 boundary around the authoritative Game. It owns its game; no Game reference,
 rendering, heuristic features, reward policy, or learning algorithm is part of
-the observation contract. All existing project rules apply unchanged; see
-[TETRIO_RULESET.md](TETRIO_RULESET.md). No TO VERIFY behavior is resolved here.
+the observation contract. It delegates all rules to the engine; see
+[TETRIO_RULESET.md](TETRIO_RULESET.md) for confirmed and project-specific statuses.
 The [AI roadmap](AI_ROADMAP.md) owns planned search/learning and versus objectives;
-this contract describes only the current own-state placement boundary. Garbage,
-attack and related versus facts are not implemented or encoded in v1.
+this contract describes the current own-state placement boundary. Contract v2
+includes garbage occupancy, attack-chain state, rotation history and queued garbage.
 
 ```python
 from tetris_trainer.environment import PlacementEnvironment
@@ -27,8 +27,8 @@ if candidates:
 ## Numerical observation
 
 `observe()` and `reset()` return an immutable Python `tuple[int, ...]` of length
-**212**. There are no Python objects or Game internals inside the vector. The
-module exports `CONTRACT_VERSION = 1`, layout slices, `OBSERVATION_SIZE`,
+**929**. There are no Python objects or Game internals inside the vector. The
+module exports `CONTRACT_VERSION = 2`, layout slices, `OBSERVATION_SIZE`,
 `BOARD_SHAPE`, `QUEUE_LENGTH`, and a read-only `PIECE_IDS` mapping.
 
 | Indices | Shape / contents | Encoding |
@@ -38,13 +38,29 @@ module exports `CONTRACT_VERSION = 1`, layout slices, `OBSERVATION_SIZE`,
 | 204:206 | Hold (piece, available) | Piece ID and 0/1 availability flag |
 | 206:211 | Next five pieces | Piece IDs in next-to-spawn order |
 | 211 | Episode terminated | 0 continuing, 1 terminated |
+| 212:412 | Garbage mask flattened from (20, 10) | 1 garbage cell, 0 otherwise |
+| 412 | Combo | Engine chain counter, initially -1 |
+| 413 | B2B | Engine chain counter, initially -1 |
+| 414:416 | Last successful rotation (amount, kick index) | (0, -1) when absent |
+| 416 | Stored spin from the last successful rotation | 0 none, 1 mini, 2 full |
+| 417:929 | Pending garbage, up to 256 ordered rows | Interleaved (hole + 1, ready 0/1); (0, 0) padding |
+
+The engine enforces a project bound of 256 pending garbage rows atomically;
+the vector never truncates pending rows. Event boundaries are omitted because
+FIFO cancellation and insertion use row order and readiness. Garbage masks
+retain cell identity needed for garbage-line facts. Imported garbage is explicit;
+the engine uses project-specific visible-board insertion and externally supplied
+readiness rather than a network clock. Ready rows may rise past unready events,
+with a cap of eight inserted rows per nonclearing lock. The stored rotation spin
+retains rotation-time classification through instant hard drop. See rule statuses
+for external compatibility limits.
 
 Piece IDs are explicit: **0 absent; 1 I; 2 J; 3 L; 4 O; 5 S; 6 T; 7 Z**.
 Orientations are the existing SPAWN=0, RIGHT=1, REVERSE=2, LEFT=3. An absent
 active piece encodes `(0, 0, 0, 0)`; ID zero disambiguates absence from a real
 spawn pose. Empty hold is zero. The hold flag is one only when an active piece
 exists, hold has not been used, and neither engine nor environment is terminal;
-it describes potential hold eligibility, not an available action in v1.
+it describes potential hold eligibility, not an available action in v2.
 
 Board indexing is `flat[y * 10 + x]`: x increases right; y increases downward
 from the top visible row (0) to the floor row (19). No hidden rows are stored in
@@ -72,13 +88,18 @@ as transition facts rather than handcrafted input features.
 objects. Each exposes:
 
 - `index`: its current policy row, from 0 through N-1;
-- `values`: a four-int row `(piece_id, orientation, x, y)`.
+- `values`: a five-int row `(piece_id, orientation, x, y, spin_id)`.
 
-Stacking those rows gives shape **(N, 4)**, with the same integer encodings as
+Stacking those rows gives shape **(N, 5)**, with the same integer encodings as
 the active pose. N varies because the current board/pose changes which final
 locks are reachable. Rows correspond exactly to `Game.legal_placements()` in
-engine order, with its deduplication by occupied cells. No unreachable poses
+engine order, including distinct lock-relevant spin variants. No unreachable poses
 are inserted to create a fixed action space. No keyboard actions are exposed.
+
+Spin IDs are **0 none, 1 mini, 2 full**, exported through read-only `SPIN_IDS`.
+The engine supplies each placement's classification; the environment performs
+no spin inference. `PLACEMENT_SIZE = 5` fixes the numerical row width. Equal
+poses with different reachable spin outcomes have distinct fifth values.
 
 A policy can score N rows and submit `env.step(candidates[selected_index])`.
 `step(0)` is intentionally rejected: a raw integer cannot carry stale-state
@@ -107,11 +128,17 @@ Invalid, stale, foreign, or terminal actions raise `ValueError` without changing
 gameplay state, current candidates, or step count. A successful step returns a
 frozen `StepResult` with:
 
-- `observation`: the next 212-int vector;
+- `observation`: the next 929-int vector;
 - `terminated`: whether this placement-only episode has ended;
-- `facts`: frozen `TransitionFacts` containing `placed` (the chosen four-int
+- `facts`: frozen `TransitionFacts` containing `placed` (the chosen five-int
   row), `locked`, `lines_cleared` for this step, `total_lines`, engine `game_over`,
-  `terminal_reason`, and episode `step_count` (one-based after stepping).
+  `terminal_reason`, episode `step_count` (one-based after stepping), and optional
+  `clear_event` forwarded from the engine.
+
+`clear_event` retains immutable lock facts: piece, cleared row indices, spin,
+all-clear, cleared garbage lines, combo/B2B before and after, base/generated/surge
+attack, cancelled/outgoing attack, inserted garbage, remaining pending events,
+and game over. These are factual outputs rather than reward weights.
 
 Termination is engine game over **or** absence of visible legal lock placements.
 `terminal_reason` is `game_over`, `no_legal_placements`, or `None`. The latter
@@ -123,18 +150,18 @@ There is no built-in placement limit, truncation policy, or training loop.
 No `reward` field or default heuristic is supplied. A future reward function
 consumes facts and the previous/next observations in a separate component. It
 can use authoritative cleared lines, termination reason, total lines, chosen
-piece/pose, and observed board changes. This task neither defines weights nor
-adds attack, spin, combo, or B2B facts that the engine does not implement.
+piece/pose, and observed board changes. ClearEvent exposes engine attack, spin,
+combo, B2B and garbage facts without defining reward weights.
 Cleared lines are factual metadata, not automatically attack or the final reward;
-the roadmap's versus reward direction requires future authoritative mechanics.
+the roadmap owns future reward design.
 
 ## Hold extension
 
-Hold state and eligibility are already observed. V1 actions operate solely on
+Hold state and eligibility are already observed. V2 actions operate solely on
 the current active piece. A future bounded extension can add a tagged action
 kind (placement versus hold) with decision-scoped handles, or compare placements
 on an authoritative held-game branch. It can reuse reset/step/facts boundaries
-and existing engine hold behavior, versioning any changed row schema. V1 does
+and existing engine hold behavior, versioning any changed row schema. V2 does
 not execute hold or rank held-piece alternatives.
 
 ## Validation and performance

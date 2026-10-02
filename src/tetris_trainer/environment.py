@@ -1,6 +1,6 @@
 """Framework-free numerical boundary for legal final-placement policies.
 
-Contract v1 is documented in docs/RL_ENVIRONMENT.md. No reward policy, UI,
+Contract v2 is documented in docs/RL_ENVIRONMENT.md. No reward policy, UI,
 learning algorithm, or gameplay mechanics live here.
 """
 
@@ -9,12 +9,13 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from types import MappingProxyType
 
-from .board import HEIGHT, WIDTH
-from .engine import Game, Placement
+from .board import GarbageCell, HEIGHT, WIDTH
+from .engine import ClearEvent, Game, MAX_PENDING_GARBAGE, Placement
 from .pieces import Tetromino
+from .versus import Spin
 
 
-CONTRACT_VERSION = 1
+CONTRACT_VERSION = 2
 QUEUE_LENGTH = 5
 BOARD_SHAPE = (HEIGHT, WIDTH)
 BOARD_SLICE = slice(0, HEIGHT * WIDTH)
@@ -22,13 +23,23 @@ ACTIVE_SLICE = slice(BOARD_SLICE.stop, BOARD_SLICE.stop + 4)
 HOLD_SLICE = slice(ACTIVE_SLICE.stop, ACTIVE_SLICE.stop + 2)
 QUEUE_SLICE = slice(HOLD_SLICE.stop, HOLD_SLICE.stop + QUEUE_LENGTH)
 TERMINATED_INDEX = QUEUE_SLICE.stop
-OBSERVATION_SIZE = TERMINATED_INDEX + 1
+GARBAGE_BOARD_SLICE = slice(TERMINATED_INDEX + 1, TERMINATED_INDEX + 1 + HEIGHT * WIDTH)
+COMBO_INDEX = GARBAGE_BOARD_SLICE.stop
+B2B_INDEX = COMBO_INDEX + 1
+ROTATION_AMOUNT_INDEX = B2B_INDEX + 1
+ROTATION_KICK_INDEX = ROTATION_AMOUNT_INDEX + 1
+ROTATION_SPIN_INDEX = ROTATION_KICK_INDEX + 1
+PENDING_GARBAGE_SLICE = slice(ROTATION_SPIN_INDEX + 1,
+                              ROTATION_SPIN_INDEX + 1 + MAX_PENDING_GARBAGE * 2)
+OBSERVATION_SIZE = PENDING_GARBAGE_SLICE.stop
 PIECE_IDS = MappingProxyType({
     None: 0, Tetromino.I: 1, Tetromino.J: 2, Tetromino.L: 3,
     Tetromino.O: 4, Tetromino.S: 5, Tetromino.T: 6, Tetromino.Z: 7,
 })
 Observation = tuple[int, ...]
-PlacementValues = tuple[int, int, int, int]
+PLACEMENT_SIZE = 5
+SPIN_IDS = MappingProxyType({Spin.NONE: 0, Spin.MINI: 1, Spin.FULL: 2})
+PlacementValues = tuple[int, int, int, int, int]
 
 
 def encode_observation(game: Game, *, terminated: bool) -> Observation:
@@ -42,7 +53,16 @@ def encode_observation(game: Game, *, terminated: bool) -> Observation:
     ))
     queued = game.randomizer.snapshot()[1][:QUEUE_LENGTH]
     preview = tuple(PIECE_IDS[piece] for piece in queued) + (0,) * (QUEUE_LENGTH - len(queued))
-    return board + pose + hold + preview + (int(terminated),)
+    garbage = tuple(int(cell is GarbageCell.GARBAGE)
+                    for row in game.board.rows for cell in row)
+    rotation = game.last_rotation
+    versus = (game.combo, game.b2b, rotation.amount if rotation else 0,
+              rotation.kick_index if rotation else -1,
+              SPIN_IDS[rotation.spin] if rotation else 0)
+    pending = tuple(value for event in game.pending_garbage for hole in event.holes
+                    for value in (hole + 1, int(event.ready)))
+    padding = (0,) * (MAX_PENDING_GARBAGE * 2 - len(pending))
+    return board + pose + hold + preview + (int(terminated),) + garbage + versus + pending + padding
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,6 +84,7 @@ class TransitionFacts:
     game_over: bool
     terminal_reason: str | None
     step_count: int
+    clear_event: ClearEvent | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -99,7 +120,8 @@ class PlacementEnvironment:
         self._token = object()
         placements = self._game.legal_placements()
         self._actions = tuple(
-            PlacementAction(index, (PIECE_IDS[p.kind], int(p.orientation), p.x, p.y),
+            PlacementAction(index, (PIECE_IDS[p.kind], int(p.orientation), p.x, p.y,
+                                    SPIN_IDS[p.spin]),
                             p, self._token)
             for index, p in enumerate(placements)
         )
@@ -145,5 +167,5 @@ class PlacementEnvironment:
         return StepResult(self.observe(), self.terminated, TransitionFacts(
             action.values, transition.locked, transition.lines_cleared,
             self._game.total_lines, transition.game_over,
-            self.terminal_reason, self._step_count,
+            self.terminal_reason, self._step_count, transition.clear_event,
         ))

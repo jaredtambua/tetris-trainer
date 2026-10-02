@@ -16,7 +16,7 @@ if torch is not None:
         load_checkpoint, run_headless, save_checkpoint,
     )
 from tetris_trainer.board import Board, WIDTH
-from tetris_trainer.engine import ActivePiece, Game
+from tetris_trainer.engine import ActivePiece, GarbageEvent, Game, RotationHistory
 from tetris_trainer.environment import PlacementEnvironment
 from tetris_trainer.pieces import Tetromino
 
@@ -35,8 +35,8 @@ class NeuralTests(unittest.TestCase):
         before = self.env._game.snapshot()
         actions = self.env.legal_actions()
         first, second = self.batch(), self.batch()
-        self.assertEqual(first.states.shape, (1, 212))
-        self.assertEqual(first.candidates.shape, (1, len(actions), 4))
+        self.assertEqual(first.states.shape, (1, 929))
+        self.assertEqual(first.candidates.shape, (1, len(actions), 5))
         self.assertEqual(first.states.dtype, torch.float32)
         self.assertEqual(first.candidates.dtype, torch.float32)
         self.assertEqual(first.mask.dtype, torch.bool)
@@ -50,7 +50,7 @@ class NeuralTests(unittest.TestCase):
         for index, action in enumerate(actions):
             self.assertIs(first.actions[0][index], action)
             torch.testing.assert_close(first.candidates[0, index],
-                torch.tensor(action.values) / torch.tensor([7, 3, 10, 20]))
+                torch.tensor(action.values) / torch.tensor([7, 3, 10, 20, 2]))
         self.assertEqual(self.env._game.snapshot(), before)
         self.assertIs(self.env.legal_actions(), actions)
 
@@ -62,6 +62,40 @@ class NeuralTests(unittest.TestCase):
         for samples in ([], [((0,) * 211, ())]):
             with self.assertRaises(ValueError):
                 adapt_batch(samples)
+
+    def test_v2_fields_are_preserved_raw_and_v1_rows_rejected(self):
+        game = Game(42)
+        game.combo = 12
+        game.b2b = 5
+        game.last_rotation = RotationHistory(-1, 4)
+        game.enqueue_garbage(GarbageEvent((9, 2), False))
+        env = PlacementEnvironment.from_game(game)
+        batch = adapt_batch([(env.observe(), env.legal_actions())])
+        torch.testing.assert_close(batch.states[0, 212:],
+                                   torch.tensor(env.observe()[212:], dtype=torch.float32))
+        with self.assertRaises(ValueError):
+            adapt_batch([(env.observe()[:212], ())])
+
+    def test_spin_variants_have_distinct_inputs_and_authoritative_handles(self):
+        game = Game(12)
+        game.active = ActivePiece(Tetromino.T)
+        game.board = Board().with_cells({(3, 17): Tetromino.J, (5, 17): Tetromino.J,
+                                        (3, 19): Tetromino.J})
+        env = PlacementEnvironment.from_game(game)
+        actions = env.legal_actions()
+        pairs = [(a, b) for i, a in enumerate(actions) for b in actions[i + 1:]
+                 if a.values[:4] == b.values[:4] and a.values[4] != b.values[4]]
+        self.assertTrue(pairs)
+        a, b = pairs[0]
+        batch = adapt_batch([(env.observe(), (a, b))])
+        self.assertTrue(torch.equal(batch.candidates[0, 0, :4],
+                                    batch.candidates[0, 1, :4]))
+        self.assertNotEqual(batch.candidates[0, 0, 4], batch.candidates[0, 1, 4])
+        self.assertIs(batch.actions[0][0], a)
+        self.assertIs(batch.actions[0][1], b)
+        for action in (a, b):
+            self.assertEqual(game.simulate_placement_result(action._placement)
+                             .transition.clear_event.spin, action._placement.spin)
 
     def test_unequal_batches_padding_mask_and_terminal_value(self):
         actions = self.env.legal_actions()
@@ -90,7 +124,7 @@ class NeuralTests(unittest.TestCase):
         other = self.model(batch.states, batch.candidates[:, permutation], batch.mask[:, permutation])
         torch.testing.assert_close(other.logits, output.logits[:, permutation])
         torch.testing.assert_close(other.values, output.values)
-        candidates = torch.cat([batch.candidates, torch.full((1, 7, 4), 1000.)], dim=1)
+        candidates = torch.cat([batch.candidates, torch.full((1, 7, 5), 1000.)], dim=1)
         mask = torch.cat([batch.mask, torch.zeros((1, 7), dtype=torch.bool)], dim=1)
         padded = self.model(batch.states, candidates, mask)
         torch.testing.assert_close(padded.logits[:, :-7], output.logits)
@@ -107,7 +141,7 @@ class NeuralTests(unittest.TestCase):
         counts = [len(actions) for _, actions in samples]
         self.assertGreater(max(counts), min(counts))
         batch = adapt_batch(samples)
-        self.assertEqual(batch.candidates.shape, (7, max(counts), 4))
+        self.assertEqual(batch.candidates.shape, (7, max(counts), 5))
         self.assertEqual(batch.mask.sum(dim=1).tolist(), counts)
         output = self.model(batch.states, batch.candidates, batch.mask)
         for row, count in enumerate(counts):
@@ -186,10 +220,11 @@ class NeuralTests(unittest.TestCase):
             torch.testing.assert_close(actual.values, expected.values, rtol=0, atol=0)
             payload = torch.load(path, weights_only=True)
             for key in ('format_version', 'tensor_version', 'environment_version'):
-                broken = dict(payload, **{key: 999})
-                torch.save(broken, path)
-                with self.assertRaises(ValueError):
-                    load_checkpoint(path)
+                for version in (1, 999):
+                    broken = dict(payload, **{key: version})
+                    torch.save(broken, path)
+                    with self.assertRaises(ValueError):
+                        load_checkpoint(path)
             for broken in ({}, [], None, dict(payload, config={'hidden_size': 0}),
                            dict(payload, state_dict={})):
                 torch.save(broken, path)
@@ -225,7 +260,7 @@ class NeuralTests(unittest.TestCase):
         self.assertTrue(torch.equal(before, torch.random.get_rng_state()))
         self.assertEqual(first, run_headless(seed=3, placement_limit=5, stochastic=True))
         self.assertLessEqual(first.placements, 5)
-        self.assertEqual(len(first.observation), 212)
+        self.assertEqual(len(first.observation), 929)
         zero = run_headless(placement_limit=0)
         self.assertEqual((zero.placements, zero.stop_reason), (0, 'limit'))
         for value in (-1, True, 1.5):
