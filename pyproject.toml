@@ -11,5 +11,10 @@ requires-python = ">=3.11"
 [project.optional-dependencies]
 ml = ["torch>=2.6,<3"]
 
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["tetris_trainer*"]
+namespaces = false
+
 [tool.setuptools.package-data]
 tetris_trainer = ["data/*.json"]

@@ -6,13 +6,15 @@ until an input moves it.
 
 ## Play
 
-Python 3.11+ with Tk support is the only requirement. From the repository root:
+Python 3.11+ with Tk support is required for the desktop application. Complete
+the editable installation below first. With the environment active:
 
 ```sh
 make play
 ```
 
 For a repeatable piece sequence, use `python -m tetris_trainer --seed 123`.
+Without Make, use `python -m tetris_trainer`.
 
 | Key | Action |
 | --- | --- |
@@ -46,7 +48,7 @@ that computation time.
 
 ## Interpretable one-ply baseline
 
-`tetris_trainer/baseline.py` owns feature extraction and decision logic. Neither
+`src/tetris_trainer/baseline.py` owns feature extraction and decision logic. Neither
 `Game` nor `Board` contains AI scores. For every legal placement the agent uses
 `Game.simulate_placement()`, measures the resulting **post-clear** board, and
 maximizes this deliberately simple, untuned integer formula:
@@ -111,6 +113,55 @@ per call (median of three 1,000-call batches). Timings depend on the machine
 and board and are observations, not test thresholds.
 
 ## Develop
+
+The package lives in `src/tetris_trainer/`; `tests/`, `benchmarks/` and `docs/`
+remain repository tooling/documentation, not installed runtime packages. The src
+layout prevents repository-root imports from hiding a missing/broken install.
+Public imports and `python -m tetris_trainer` remain unchanged.
+
+From a fresh clone, Windows PowerShell setup is:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -e .
+# Optional ML development and complete neural test coverage:
+python -m pip install -e ".[ml]"
+python -m unittest discover -s tests -v
+python -m compileall -q src/tetris_trainer tests benchmarks
+```
+
+Use Python >=3.11. On POSIX shells activate with `source .venv/bin/activate`.
+If PowerShell activation is unavailable, invoke `.\.venv\Scripts\python.exe`
+directly for the same commands; no execution-policy change is required.
+After package-layout changes, repeat the editable install. Core development uses
+standard-library unittest and needs no third-party development/test extra.
+PyTorch is confined to the optional `ml` extra; it is unnecessary for human play,
+the engine, environment or baseline. No second dependency file is maintained.
+
+With Make available, `make check` runs tests and compilation; its `PYTHON`
+variable can select an interpreter. The direct commands above are equivalent.
+Run `git diff --check` as an additional repository check.
+
+Inspect installation from an unrelated directory using the environment's
+interpreter: `python -c "import tetris_trainer; print(tetris_trainer.__file__)"`.
+An editable install should resolve to this checkout's `src/tetris_trainer/`.
+Run benchmark modules from the repository root, since `benchmarks/` is tooling:
+
+```sh
+python -m benchmarks.simulation
+python -m benchmarks.baseline
+python -m benchmarks.environment
+python -m benchmarks.neural
+```
+
+Local `.venv`, egg-info, bytecode, build outputs and test/coverage caches are
+ignored. Put temporary profiles, benchmark output and future ML artifacts under
+ignored root `artifacts/`, `checkpoints/` or `runs/`; create them only when needed.
+For example, `python -m benchmarks.performance --output artifacts/performance.json`
+requires creating `artifacts/` first. Do not store generated checkpoints/logs in
+source directories. Deliberately reviewed benchmark evidence in `docs/` and
+test fixtures remain versioned; JSON/model extensions are not globally ignored.
 
 The optional [neural placement foundation](docs/NEURAL_AGENT.md) provides a
 trainable variable-action policy/value model, tensor batching/masks, inference,
@@ -282,7 +333,7 @@ reuse and measures complete one-/two-ply workloads without changing AI policy.
 ## First-version rules boundary
 
 Rotation reads the machine-readable TETR.IO-compatible SRS+ kick data in
-`tetris_trainer/data/srs_plus.json`; the UI has no independent movement,
+`src/tetris_trainer/data/srs_plus.json`; the UI has no independent movement,
 collision, rotation, locking, or line-clear implementation.
 
 The repository supplied for this integration contained no prior rules or

@@ -3,14 +3,20 @@
 These are the authoritative repository instructions for agents working on the
 current Tetris-trainer. Inspect the current checkout before changing it. Preserve
 existing work, including uncommitted changes; do not restore an older branch's
-architecture, restructure the source tree, or introduce placeholder packages.
+architecture or introduce placeholder packages. Preserve the existing source
+structure by default; do not perform speculative restructuring. Structural or
+package-layout changes require explicit authorization in the current bounded task.
 
 ## Existing architecture
 
-- `tetris_trainer/engine.py` owns `Game`, semantic `Action` handling, immutable
+The installed package lives in `src/tetris_trainer/`; module names below refer
+to that directory unless another path is specified. Install editable before
+running tests, demos or the application; repository-root imports are insufficient.
+
+- `src/tetris_trainer/engine.py` owns `Game`, semantic `Action` handling, immutable
   `ActivePiece`, `Transition`, `Placement`, and `SimulationResult` values, the
   seedable `BagRandomizer`, placement reachability, cloning, and simulation.
-- `tetris_trainer/board.py` owns immutable `Board` occupancy, locking, and line
+- `src/tetris_trainer/board.py` owns immutable `Board` occupancy, locking, and line
   clearing. `pieces.py` owns tetromino geometry and orientations. These modules
   form one authoritative engine, not competing rules implementations.
 - `data/srs_plus.json` supplies the existing ordered rotation kick tables.
@@ -31,6 +37,11 @@ architecture, restructure the source tree, or introduce placeholder packages.
   mechanics to Game; no reward weights, learned hold actions, or training
   algorithm live in this boundary. See `docs/RL_ENVIRONMENT.md` for contract v1
   and `benchmarks/environment.py` for basic reset/step overhead measurements.
+- `neural.py` owns the optional, UNTRAINED PyTorch tensor adapter, shared
+  variable-placement policy/value model, inference wrapper, detached rollout
+  records and versioned local checkpoints. See `docs/NEURAL_AGENT.md`.
+  `tests/test_neural.py` verifies these contracts and headless boundaries;
+  `benchmarks/neural.py` measures adaptation/forward/decision CPU overhead.
 
 ## Non-negotiable principles
 
@@ -137,6 +148,12 @@ and compiles the current source/tests. If Make is unavailable, use the exact
 equivalent commands documented in the workflow. Hot-path changes should run
 `python -m benchmarks.simulation` when relevant, reporting fixture, environment,
 and timings rather than imposing machine-dependent timing thresholds.
+
+Use the repository `.venv` (activate it or pass its interpreter explicitly).
+Install `python -m pip install -e ".[ml]"` for complete neural coverage; core
+tests use standard-library unittest and require no separate development extra.
+Keep local outputs under ignored `artifacts/`, `checkpoints/` or `runs/`.
+Deliberate benchmark evidence/fixtures in docs/tests may remain tracked.
 
 Use this concise handoff; mark empty sections `None` or `Not applicable`:
 

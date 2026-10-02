@@ -1,10 +1,12 @@
 .PHONY: play test check
 
+PYTHON ?= python
+
 play:
-	python -m tetris_trainer
+	$(PYTHON) -m tetris_trainer
 
 test:
-	python -m unittest discover -s tests -v
+	$(PYTHON) -m unittest discover -s tests -v
 
 check: test
-	python -m compileall -q tetris_trainer tests
+	$(PYTHON) -m compileall -q src/tetris_trainer tests benchmarks

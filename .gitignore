@@ -4,3 +4,17 @@ __pycache__/
 build/
 dist/
 *.egg-info/
+
+# Local test/type/lint/coverage caches (no corresponding tools required).
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# Generated benchmarks, profiles, checkpoints and future ML runs live here.
+/artifacts/
+/checkpoints/
+/runs/

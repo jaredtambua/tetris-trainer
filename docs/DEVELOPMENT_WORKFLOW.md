@@ -2,7 +2,8 @@
 
 [AGENTS.md](../AGENTS.md) is the authoritative instruction set.
 [TETRIO_RULESET.md](TETRIO_RULESET.md) tracks evidence and local decisions.
-Start from the current checkout and preserve the existing source layout,
+Start from the current checkout and preserve the source layout by default;
+structural changes require explicit authorization in the bounded task. Preserve
 engine/UI boundaries, placement system, and simulation infrastructure.
 
 ## Substantial-feature lifecycle
@@ -80,6 +81,11 @@ For substantial work, all of these must hold:
 
 ## Validation commands
 
+Activate the repository `.venv` and install the editable package before running
+commands below: `python -m pip install -e ".[ml]"` includes neural coverage.
+See README for PowerShell setup. The src layout makes imports depend on a
+correct installation rather than an incidental root-level source directory.
+
 `make check` retains `make test` (unittest discovery) and compileall. Workflow
 document validation lives in `tests/test_workflow_documents.py` and therefore
 runs through the existing discovery command; no Make target or runtime package
@@ -95,7 +101,7 @@ When Make is unavailable, run its exact existing steps, then the diff check:
 
 ```sh
 python -m unittest discover -s tests -v
-python -m compileall -q tetris_trainer tests
+python -m compileall -q src/tetris_trainer tests benchmarks
 git diff --check
 ```
 
