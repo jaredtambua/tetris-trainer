@@ -34,6 +34,12 @@ architecture, restructure the source tree, or introduce placeholder packages.
 
 ## Non-negotiable principles
 
+- `neural.py` is the optional PyTorch policy/value, tensor-adapter, inference,
+  rollout-data and checkpoint layer above environment contract v1. See
+  `docs/NEURAL_AGENT.md`; it owns no mechanics, rewards or RL optimizer. Engine,
+  environment, baseline and UI must not import this layer. Install `.[ml]` for
+  neural test coverage and use `benchmarks.neural` for CPU overhead checks.
+
 - Maintain ONE authoritative game engine. Human gameplay, AI/search, simulation,
   and future trainer features must reuse it. Never duplicate collision,
   movement, rotation/kicks, locking, line clearing, randomization, or other

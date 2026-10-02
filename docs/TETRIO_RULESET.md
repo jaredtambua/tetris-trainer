@@ -68,9 +68,10 @@ The following are PROJECT-SPECIFIC architecture and task-scope decisions:
   These are untuned AI preferences, not TETR.IO gameplay scoring or rules.
 - UI watch mode schedules final placement decisions; this adds no engine gravity.
   The same agent works headlessly and does not mutate the source while deciding.
-- No gravity, gameplay scoring/attack/opponents, learned evaluator, deeper
-  search policy, or training framework is introduced. Future additions need
-  separately scoped tasks.
+- No gravity, gameplay scoring/attack/opponents or deeper search policy is
+  introduced. The optional neural foundation supplies an untrained PyTorch
+  policy/value model above the environment; it adds no reward objective or RL
+  training algorithm. Future additions need separately scoped tasks.
 
 ## Evidence inventory and maintenance
 
